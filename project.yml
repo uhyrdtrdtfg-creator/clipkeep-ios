@@ -1,0 +1,98 @@
+name: ClipKeep
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  bundleIdPrefix: com.sam
+  createIntermediateGroups: true
+  xcodeVersion: "16.2"
+
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"          # iPhone only
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "4257SFGRFK"
+
+packages: {}
+
+targets:
+
+  # ── Shared Framework ──────────────────────────────────────────────────────
+  ClipKeepCore:
+    type: framework
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ClipKeepCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sam.clipkeep.ios.core
+        INFOPLIST_FILE: ClipKeepCore/Info.plist
+        DEFINES_MODULE: YES
+    scheme:
+      testTargets:
+        - ClipKeepTests
+
+  # ── Main App ──────────────────────────────────────────────────────────────
+  ClipKeep:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ClipKeep
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sam.clipkeep.ios
+        INFOPLIST_FILE: ClipKeep/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: ClipKeepCore
+      - target: ClipKeepKeyboard
+        embed: true
+    entitlements:
+      path: ClipKeep/ClipKeep.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.clipkeep.ios
+    scheme:
+      testTargets:
+        - ClipKeepTests
+
+  # ── Keyboard Extension ────────────────────────────────────────────────────
+  ClipKeepKeyboard:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ClipKeepKeyboard
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sam.clipkeep.ios.keyboard
+        INFOPLIST_FILE: ClipKeepKeyboard/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: ClipKeepCore
+    entitlements:
+      path: ClipKeepKeyboard/ClipKeepKeyboard.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.clipkeep.ios
+
+  # ── Unit Tests ────────────────────────────────────────────────────────────
+  ClipKeepTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ClipKeepTests
+    dependencies:
+      - target: ClipKeepCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.sam.clipkeep.ios.tests
