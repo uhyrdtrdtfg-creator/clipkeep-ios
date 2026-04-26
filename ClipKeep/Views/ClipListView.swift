@@ -9,6 +9,7 @@ struct ClipListView: View {
     @State private var showSettings = false
     @State private var toastMessage = "已复制"
     @State private var toastTimer: Timer?
+    @State private var detailItem: ClipItem? = nil
 
     var body: some View {
         NavigationStack {
@@ -17,13 +18,26 @@ struct ClipListView: View {
                     ClipRowView(item: item)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            copy(item)
+                            // Images and files open a detail view (preview + OCR).
+                            // Text items copy immediately — the common case.
+                            if item.kind == .image || item.kind == .file {
+                                detailItem = item
+                            } else {
+                                copy(item)
+                            }
                         }
                         .contextMenu {
                             Button {
                                 copy(item)
                             } label: {
                                 Label("复制", systemImage: "doc.on.doc")
+                            }
+                            if item.kind == .image || item.kind == .file {
+                                Button {
+                                    detailItem = item
+                                } label: {
+                                    Label("查看 / 识别文字", systemImage: "text.viewfinder")
+                                }
                             }
                             Button {
                                 vm.togglePin(item)
@@ -88,7 +102,10 @@ struct ClipListView: View {
             }
         }
         .toast(isShowing: $showCopiedToast, message: toastMessage)
-        .onChange(of: scenePhase) { new in
+        .sheet(item: $detailItem) { item in
+            ClipDetailView(item: item)
+        }
+        .onChange(of: scenePhase) { _, new in
             if new == .active { vm.onForeground() }
         }
     }

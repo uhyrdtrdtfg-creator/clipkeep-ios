@@ -1,10 +1,12 @@
 import SwiftUI
 import UIKit
+import Vision
 import ClipKeepCore
 
 struct KeyboardView: View {
     @ObservedObject var store: KeyboardStore
     let onSelect: (ClipItem) -> Bool
+    let onInsertText: (String) -> Void   // used to push OCR-recognised text into the host field
     let onDeleteBackward: () -> Void
     let onDismiss: () -> Void
 
@@ -12,7 +14,8 @@ struct KeyboardView: View {
     @State private var selectedFilter: ClipFilter = .all
     @State private var notice: String?
     @State private var noticeTask: Task<Void, Never>?
-    @State private var pendingPinItem: ClipItem?   // non-nil = category picker visible
+    @State private var pendingPinItem: ClipItem?          // non-nil = category picker visible
+    @State private var pendingImageActionItem: ClipItem?  // non-nil = image action overlay visible
 
     /// Static filters + one chip per pinned category (inserted after .pinned)
     private var allFilters: [ClipFilter] {
@@ -44,7 +47,30 @@ struct KeyboardView: View {
         .background(Color(UIColor.systemBackground))
         .onDisappear { noticeTask?.cancel() }
         .overlay(alignment: .bottom) {
-            if let item = pendingPinItem {
+            // Image action overlay takes priority; category picker is shown after "收藏" is chosen.
+            if let item = pendingImageActionItem {
+                ImageActionOverlay(
+                    item: item,
+                    onOCR: {
+                        pendingImageActionItem = nil
+                        Task { await performOCR(item) }
+                    },
+                    onPin: {
+                        pendingImageActionItem = nil
+                        if item.isPinned {
+                            ClipStore.shared.togglePin(id: item.id)
+                            store.reload()
+                            showNotice("已取消收藏")
+                        } else {
+                            withAnimation { pendingPinItem = item }
+                        }
+                    },
+                    onCancel: {
+                        withAnimation { pendingImageActionItem = nil }
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if let item = pendingPinItem {
                 CategoryPickerOverlay(
                     item: item,
                     existingCategories: ClipStore.shared.allPinnedCategories()
@@ -60,6 +86,7 @@ struct KeyboardView: View {
             }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingPinItem == nil)
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingImageActionItem == nil)
     }
 
     // MARK: – Top bar (search left, filter chips right)
@@ -127,13 +154,17 @@ struct KeyboardView: View {
                         ClipKeyboardCard(item: item) {
                             handleSelection(item)
                         } onPin: {
-                            if item.isPinned {
-                                // already pinned → unpin
+                            if item.kind == .image {
+                                // Image items: show action overlay so user can choose
+                                // between OCR-to-input and pinning.
+                                withAnimation { pendingImageActionItem = item }
+                            } else if item.isPinned {
+                                // Already pinned → unpin immediately
                                 ClipStore.shared.togglePin(id: item.id)
                                 store.reload()
                                 showNotice("已取消收藏")
                             } else {
-                                // not pinned → show category picker
+                                // Not pinned → show category picker
                                 withAnimation { pendingPinItem = item }
                             }
                         }
@@ -202,6 +233,51 @@ struct KeyboardView: View {
             try? await Task.sleep(nanoseconds: 1_400_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { notice = nil }
+        }
+    }
+
+    /// Run Vision OCR on an image item and insert the recognised text into the host field.
+    /// Uses the cached `recognizedText` when available to avoid redundant CPU work.
+    private func performOCR(_ item: ClipItem) async {
+        // Fast path: use cached OCR result stored during a previous recognition.
+        if let cached = item.recognizedText, !cached.isEmpty {
+            onInsertText(cached)
+            showNotice("已输入识别文字")
+            return
+        }
+
+        guard let url = ClipStore.shared.assetURL(for: item),
+              let uiImage = UIImage(contentsOfFile: url.path),
+              let cgImage = uiImage.cgImage else {
+            showNotice("无法读取图片")
+            return
+        }
+
+        showNotice("识别中…")
+
+        // Vision OCR is CPU-intensive — run detached so we don't stall the main actor.
+        let text = await Task.detached(priority: .userInitiated) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            // Priority order: Simplified/Traditional Chinese, English, Japanese.
+            request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US", "ja-JP"]
+            request.usesLanguageCorrection = true
+
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            try? handler.perform([request])
+
+            return (request.results ?? [])
+                .compactMap { $0.topCandidates(1).first?.string }
+                .joined(separator: "\n")
+        }.value
+
+        if text.isEmpty {
+            showNotice("未识别到文字")
+        } else {
+            onInsertText(text)
+            showNotice("已输入识别文字")
+            // Persist so next long-press on the same image is instant.
+            ClipStore.shared.saveRecognizedText(id: item.id, text: text)
         }
     }
 }
@@ -477,6 +553,68 @@ private struct EmptyKeyboardState: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: – Image action overlay
+
+/// Shown when the user long-presses an image card.
+/// Lets them choose between OCR-to-input and pinning, without conflating the two actions.
+private struct ImageActionOverlay: View {
+    let item: ClipItem
+    let onOCR: () -> Void
+    let onPin: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(spacing: 10) {
+                // Title row
+                HStack {
+                    Button("取消", action: onCancel)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("图片操作")
+                        .font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    // Balance the cancel button width so the title stays centred.
+                    Text("取消")
+                        .font(.system(size: 14))
+                        .opacity(0)
+                }
+                .padding(.horizontal, 16)
+
+                HStack(spacing: 10) {
+                    // OCR: recognise text and push it straight into the host text field.
+                    Button(action: onOCR) {
+                        Label("识别文字并输入", systemImage: "text.viewfinder")
+                            .font(.system(size: 13, weight: .medium))
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10))
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+
+                    // Pin / unpin.
+                    Button(action: onPin) {
+                        Label(
+                            item.isPinned ? "取消收藏" : "收藏",
+                            systemImage: item.isPinned ? "star.slash.fill" : "star.fill"
+                        )
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .background(Color(UIColor.secondarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 12)
+            }
+            .padding(.vertical, 10)
+            .background(Color(UIColor.systemBackground))
+        }
     }
 }
 

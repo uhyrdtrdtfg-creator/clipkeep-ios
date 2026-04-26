@@ -25,7 +25,7 @@ struct SettingsView: View {
                         Text("\(n) 条").tag(n)
                     }
                 }
-                .onChange(of: maxCount) { v in
+                .onChange(of: maxCount) { _, v in
                     ClipStore.shared.setMaxCount(v)
                 }
 
@@ -34,7 +34,7 @@ struct SettingsView: View {
                         Text(opt.label).tag(opt.days)
                     }
                 }
-                .onChange(of: maxRetentionDays) { v in
+                .onChange(of: maxRetentionDays) { _, v in
                     ClipStore.shared.setMaxRetentionDays(v)
                 }
             }

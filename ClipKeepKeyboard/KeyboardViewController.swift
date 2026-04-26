@@ -15,6 +15,10 @@ final class KeyboardViewController: UIInputViewController {
             onSelect: { [weak self] item in
                 self?.handleSelection(item) ?? false
             },
+            onInsertText: { [weak self] text in
+                // Called after OCR completes — insert the recognised text directly.
+                self?.textDocumentProxy.insertText(text)
+            },
             onDeleteBackward: { [weak self] in
                 self?.textDocumentProxy.deleteBackward()
             },
