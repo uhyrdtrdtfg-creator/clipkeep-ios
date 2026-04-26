@@ -10,17 +10,29 @@ struct FavoritesView: View {
     @State private var showCopiedToast = false
     @State private var toastTimer: Timer?
 
-    // Group pinned items: categories first (sorted), then uncategorized
-    private var grouped: [(category: String?, items: [ClipItem])] {
+    // Stable identifiable group — avoids nil-ID bug in ForEach
+    private struct CategoryGroup: Identifiable {
+        let category: String?          // nil = 未分类
+        let items: [ClipItem]
+        var id: String { category ?? "__uncategorized__" }
+        var displayName: String { category ?? "未分类" }
+    }
+
+    private var grouped: [CategoryGroup] {
         let pinned = vm.items.filter { $0.isPinned }
+        guard !pinned.isEmpty else { return [] }
+
         let categories = pinned.compactMap { $0.pinnedCategory }
             .reduce(into: [String]()) { r, c in if !r.contains(c) { r.append(c) } }
             .sorted()
-        var result: [(String?, [ClipItem])] = categories.map { cat in
-            (cat, pinned.filter { $0.pinnedCategory == cat })
+
+        var result: [CategoryGroup] = categories.map { cat in
+            CategoryGroup(category: cat, items: pinned.filter { $0.pinnedCategory == cat })
         }
         let uncategorized = pinned.filter { $0.pinnedCategory == nil }
-        if !uncategorized.isEmpty { result.append((nil, uncategorized)) }
+        if !uncategorized.isEmpty {
+            result.append(CategoryGroup(category: nil, items: uncategorized))
+        }
         return result
     }
 
@@ -34,6 +46,7 @@ struct FavoritesView: View {
                 }
             }
             .navigationTitle("收藏")
+            .onAppear { vm.reload() }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showAddCategory = true } label: {
@@ -70,21 +83,17 @@ struct FavoritesView: View {
 
     private var list: some View {
         List {
-            ForEach(grouped, id: \.category) { group in
+            ForEach(grouped) { group in
                 Section {
                     ForEach(group.items) { item in
                         itemRow(item, inCategory: group.category)
                     }
-                    .onMove { from, to in
-                        moveItems(in: group.category, from: from, to: to)
-                    }
                 } header: {
-                    categoryHeader(group.category, count: group.items.count)
+                    categoryHeader(group)
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .environment(\.editMode, .constant(.active))
     }
 
     private func itemRow(_ item: ClipItem, inCategory category: String?) -> some View {
@@ -126,18 +135,18 @@ struct FavoritesView: View {
         }
     }
 
-    private func categoryHeader(_ category: String?, count: Int) -> some View {
+    private func categoryHeader(_ group: CategoryGroup) -> some View {
         HStack {
-            Image(systemName: category == nil ? "tray" : "folder.fill")
+            Image(systemName: group.category == nil ? "tray" : "folder.fill")
                 .font(.system(size: 11))
-                .foregroundStyle(category == nil ? Color.secondary : Color.accentColor)
-            Text(category ?? "未分类")
+                .foregroundStyle(group.category == nil ? Color.secondary : Color.accentColor)
+            Text(group.displayName)
                 .font(.system(size: 12, weight: .semibold))
-            Text("(\(count))")
+            Text("(\(group.items.count))")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
             Spacer()
-            if let category {
+            if let category = group.category {
                 Button {
                     renamingCategory = category
                     renameText = category
@@ -200,8 +209,4 @@ struct FavoritesView: View {
         vm.reload()
     }
 
-    private func moveItems(in category: String?, from source: IndexSet, to destination: Int) {
-        // Items within a category are a subset of the full list; reordering is cosmetic only
-        // (full reorder support would require persisting explicit order)
-    }
 }
