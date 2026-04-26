@@ -3,16 +3,16 @@ import ClipKeepCore
 
 struct FavoritesView: View {
     @ObservedObject var vm: ClipListViewModel
+    @State private var showPicker = false
     @State private var renamingCategory: String? = nil
     @State private var renameText = ""
-    @State private var showAddCategory = false
-    @State private var newCategoryText = ""
     @State private var showCopiedToast = false
     @State private var toastTimer: Timer?
 
-    // Stable identifiable group — avoids nil-ID bug in ForEach
+    // MARK: – Group model
+
     private struct CategoryGroup: Identifiable {
-        let category: String?          // nil = 未分类
+        let category: String?
         let items: [ClipItem]
         var id: String { category ?? "__uncategorized__" }
         var displayName: String { category ?? "未分类" }
@@ -26,7 +26,7 @@ struct FavoritesView: View {
             .reduce(into: [String]()) { r, c in if !r.contains(c) { r.append(c) } }
             .sorted()
 
-        var result: [CategoryGroup] = categories.map { cat in
+        var result = categories.map { cat in
             CategoryGroup(category: cat, items: pinned.filter { $0.pinnedCategory == cat })
         }
         let uncategorized = pinned.filter { $0.pinnedCategory == nil }
@@ -36,31 +36,26 @@ struct FavoritesView: View {
         return result
     }
 
+    // MARK: – Body
+
     var body: some View {
         NavigationStack {
             Group {
-                if grouped.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
+                if grouped.isEmpty { emptyState } else { list }
             }
             .navigationTitle("收藏")
             .onAppear { vm.reload() }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showAddCategory = true } label: {
-                        Image(systemName: "folder.badge.plus")
+                    Button {
+                        showPicker = true
+                    } label: {
+                        Image(systemName: "plus")
                     }
                 }
             }
-            .alert("新建分类", isPresented: $showAddCategory) {
-                TextField("分类名称", text: $newCategoryText)
-                Button("创建") {
-                    // Category exists when items are pinned to it; nothing to create now
-                    newCategoryText = ""
-                }
-                Button("取消", role: .cancel) { newCategoryText = "" }
+            .sheet(isPresented: $showPicker, onDismiss: { vm.reload() }) {
+                AddFavoriteSheet(allItems: vm.items, existingCategories: allCategories())
             }
             .alert("重命名分类", isPresented: Binding(
                 get: { renamingCategory != nil },
@@ -112,26 +107,37 @@ struct FavoritesView: View {
         .contentShape(Rectangle())
         .onTapGesture { copyItem(item) }
         .contextMenu {
-            // Move to another category
             Menu("移动到…") {
-                Button("不分类") { ClipStore.shared.setCategory(id: item.id, category: nil); vm.reload() }
-                ForEach(vm.items.filter(\.isPinned).compactMap(\.pinnedCategory)
-                    .reduce(into: [String]()) { r, c in if !r.contains(c) { r.append(c) } }
-                    .filter { $0 != category }, id: \.self) { cat in
-                    Button(cat) { ClipStore.shared.setCategory(id: item.id, category: cat); vm.reload() }
+                Button("未分类") {
+                    ClipStore.shared.setCategory(id: item.id, category: nil)
+                    vm.reload()
+                }
+                ForEach(allCategories().filter { $0 != category }, id: \.self) { cat in
+                    Button(cat) {
+                        ClipStore.shared.setCategory(id: item.id, category: cat)
+                        vm.reload()
+                    }
                 }
             }
-            Button { copyItem(item) } label: { Label("复制", systemImage: "doc.on.doc") }
+            Button { copyItem(item) } label: {
+                Label("复制", systemImage: "doc.on.doc")
+            }
             Divider()
             Button(role: .destructive) {
-                ClipStore.shared.togglePin(id: item.id); vm.reload()
-            } label: { Label("取消收藏", systemImage: "star.slash") }
+                ClipStore.shared.togglePin(id: item.id)
+                vm.reload()
+            } label: {
+                Label("取消收藏", systemImage: "star.slash")
+            }
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
-                ClipStore.shared.togglePin(id: item.id); vm.reload()
-            } label: { Label("取消收藏", systemImage: "star.slash") }
-                .tint(.orange)
+                ClipStore.shared.togglePin(id: item.id)
+                vm.reload()
+            } label: {
+                Label("取消收藏", systemImage: "star.slash")
+            }
+            .tint(.orange)
         }
     }
 
@@ -161,22 +167,39 @@ struct FavoritesView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             Image(systemName: "star.circle")
                 .font(.system(size: 52, weight: .ultraLight))
                 .foregroundStyle(.tertiary)
             Text("还没有收藏")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("在历史列表或键盘中长按条目即可收藏")
+            Text("点击右上角 + 从历史记录中添加")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            Button {
+                showPicker = true
+            } label: {
+                Label("添加收藏", systemImage: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 4)
         }
+        .padding(.horizontal, 40)
     }
 
     // MARK: – Helpers
+
+    private func allCategories() -> [String] {
+        vm.items.filter(\.isPinned).compactMap(\.pinnedCategory)
+            .reduce(into: [String]()) { r, c in if !r.contains(c) { r.append(c) } }
+            .sorted()
+    }
 
     private func kindIcon(_ kind: ClipKind) -> some View {
         let (name, color): (String, Color) = {
@@ -203,10 +226,171 @@ struct FavoritesView: View {
 
     private func renameCategory(from old: String, to new: String) {
         let items = ClipStore.shared.load().filter { $0.pinnedCategory == old }
-        for item in items {
-            ClipStore.shared.setCategory(id: item.id, category: new)
-        }
+        for item in items { ClipStore.shared.setCategory(id: item.id, category: new) }
         vm.reload()
     }
+}
 
+// MARK: – Add Favorite Sheet
+
+private struct AddFavoriteSheet: View {
+    let allItems: [ClipItem]
+    let existingCategories: [String]
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var selected: Set<UUID> = []
+    @State private var category: String = ""
+    @State private var showNewCategory = false
+    @State private var newCategory = ""
+
+    private var candidates: [ClipItem] {
+        // Show unpinned items (already-pinned ones can be managed in the list)
+        let base = allItems.filter { !$0.isPinned }
+        guard !searchText.isEmpty else { return base }
+        return base.filter { $0.searchableText.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Category selector
+                categoryBar
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color(UIColor.secondarySystemBackground))
+
+                Divider()
+
+                // Items list
+                if candidates.isEmpty {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: allItems.filter { !$0.isPinned }.isEmpty
+                              ? "checkmark.circle" : "magnifyingglass")
+                            .font(.system(size: 32, weight: .ultraLight))
+                            .foregroundStyle(.tertiary)
+                        Text(allItems.filter { !$0.isPinned }.isEmpty
+                             ? "所有条目都已收藏" : "无匹配结果")
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                } else {
+                    List(candidates) { item in
+                        HStack(spacing: 12) {
+                            Image(systemName: selected.contains(item.id)
+                                  ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(selected.contains(item.id)
+                                                 ? Color.accentColor : Color.secondary)
+                                .animation(.easeInOut(duration: 0.15), value: selected.contains(item.id))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .lineLimit(2)
+                                    .font(.system(size: 14))
+                                Text(item.updatedAt.formatted(.relative(presentation: .named)))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if selected.contains(item.id) {
+                                selected.remove(item.id)
+                            } else {
+                                selected.insert(item.id)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .searchable(text: $searchText, prompt: "搜索历史记录")
+            .navigationTitle("添加收藏")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("收藏 (\(selected.count))") {
+                        let cat = category.isEmpty ? nil : category
+                        for id in selected {
+                            ClipStore.shared.pin(id: id, category: cat)
+                        }
+                        dismiss()
+                    }
+                    .disabled(selected.isEmpty)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private var categoryBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("收藏到分类")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    // "不分类"
+                    categoryChip(title: "不分类", value: "")
+                    // Existing categories
+                    ForEach(existingCategories, id: \.self) { cat in
+                        categoryChip(title: cat, value: cat)
+                    }
+                    // New category
+                    Button {
+                        showNewCategory = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus").font(.system(size: 10))
+                            Text("新建").font(.system(size: 12))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background(Color(UIColor.secondarySystemFill), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .alert("新建分类", isPresented: $showNewCategory) {
+                        TextField("分类名称", text: $newCategory)
+                        Button("确定") {
+                            if !newCategory.isEmpty {
+                                category = newCategory
+                                newCategory = ""
+                            }
+                        }
+                        Button("取消", role: .cancel) { newCategory = "" }
+                    }
+                }
+            }
+        }
+    }
+
+    private func categoryChip(title: String, value: String) -> some View {
+        let isSelected = category == value
+        return Button {
+            category = value
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(
+                    isSelected ? Color.accentColor.opacity(0.12) : Color(UIColor.secondarySystemFill),
+                    in: Capsule()
+                )
+                .overlay(Capsule().strokeBorder(
+                    isSelected ? Color.accentColor.opacity(0.3) : Color.clear,
+                    lineWidth: 0.5
+                ))
+        }
+        .buttonStyle(.plain)
+    }
 }
