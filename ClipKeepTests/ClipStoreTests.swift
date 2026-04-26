@@ -4,16 +4,22 @@ import XCTest
 final class ClipStoreTests: XCTestCase {
     private var store: ClipStore!
     private var defaults: UserDefaults!
+    private var suiteName: String!
+    private var assetsDirectory: URL!
 
-    override func setUp() {
-        super.setUp()
-        defaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
-        store = ClipStore(defaults: defaults)
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        suiteName = "test.\(UUID().uuidString)"
+        defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        assetsDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("clipstore-tests-\(UUID().uuidString)", isDirectory: true)
+        store = ClipStore(defaults: defaults, assetsDirectory: assetsDirectory)
     }
 
-    override func tearDown() {
-        defaults.removePersistentDomain(forName: defaults.description)
-        super.tearDown()
+    override func tearDownWithError() throws {
+        defaults.removePersistentDomain(forName: suiteName)
+        try? FileManager.default.removeItem(at: assetsDirectory)
+        try super.tearDownWithError()
     }
 
     func testAddAndLoad() {
@@ -66,5 +72,40 @@ final class ClipStoreTests: XCTestCase {
     func testIgnoresWhitespaceOnly() {
         store.add("   \n")
         XCTAssertTrue(store.load().isEmpty)
+    }
+
+    func testAddImageAsset() throws {
+        let data = Data([0, 1, 2, 3])
+        store.add(CapturedClip(
+            kind: .image,
+            content: "图片",
+            data: data,
+            fileName: "sample.png",
+            typeIdentifier: "public.png"
+        ))
+
+        let item = try XCTUnwrap(store.load().first)
+        XCTAssertEqual(item.kind, .image)
+        XCTAssertEqual(item.byteCount, data.count)
+        let url = try XCTUnwrap(store.assetURL(for: item))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    func testDeleteRemovesAsset() throws {
+        store.add(CapturedClip(
+            kind: .file,
+            content: "sample.txt",
+            data: Data("hello".utf8),
+            fileName: "sample.txt",
+            typeIdentifier: "public.plain-text"
+        ))
+
+        let item = try XCTUnwrap(store.load().first)
+        let url = try XCTUnwrap(store.assetURL(for: item))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+
+        store.delete(id: item.id)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 }

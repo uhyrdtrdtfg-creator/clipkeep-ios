@@ -7,6 +7,7 @@ struct ClipListView: View {
 
     @State private var showCopiedToast = false
     @State private var showSettings = false
+    @State private var toastMessage = "已复制"
     @State private var toastTimer: Timer?
 
     var body: some View {
@@ -16,13 +17,11 @@ struct ClipListView: View {
                     ClipRowView(item: item)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            vm.copy(item)
-                            showToast()
+                            copy(item)
                         }
                         .contextMenu {
                             Button {
-                                vm.copy(item)
-                                showToast()
+                                copy(item)
                             } label: {
                                 Label("复制", systemImage: "doc.on.doc")
                             }
@@ -88,10 +87,15 @@ struct ClipListView: View {
                 }
             }
         }
-        .toast(isShowing: $showCopiedToast, message: "已复制")
+        .toast(isShowing: $showCopiedToast, message: toastMessage)
         .onChange(of: scenePhase) { new in
             if new == .active { vm.onForeground() }
         }
+    }
+
+    private func copy(_ item: ClipItem) {
+        toastMessage = vm.copy(item) ? "已复制" : "复制失败"
+        showToast()
     }
 
     private func showToast() {

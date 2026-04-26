@@ -16,7 +16,7 @@ final class ClipListViewModel: ObservableObject {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         let base = items
         guard !q.isEmpty else { return base }
-        return base.filter { $0.content.localizedCaseInsensitiveContains(q) }
+        return base.filter { $0.searchableText.localizedCaseInsensitiveContains(q) }
     }
 
     init(store: ClipStore = .shared, defaults: UserDefaults = AppGroup.defaults) {
@@ -38,9 +38,13 @@ final class ClipListViewModel: ObservableObject {
         capturePasteboardIfNeeded()
     }
 
-    func copy(_ item: ClipItem) {
-        UIPasteboard.general.string = item.content
-        reader.markCurrentChangeCountSeen()
+    @discardableResult
+    func copy(_ item: ClipItem) -> Bool {
+        let copied = store.copyToPasteboard(item)
+        if copied {
+            reader.markCurrentChangeCountSeen()
+        }
+        return copied
     }
 
     func delete(_ item: ClipItem) {
@@ -57,8 +61,8 @@ final class ClipListViewModel: ObservableObject {
     }
 
     private func capturePasteboardIfNeeded() {
-        if let text = reader.readIfChanged() {
-            store.add(text)
+        if let clip = reader.readClipIfChanged() {
+            store.add(clip)
         }
         reload()
     }

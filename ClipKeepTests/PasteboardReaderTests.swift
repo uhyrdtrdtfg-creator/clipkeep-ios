@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import ClipKeepCore
 
 final class PasteboardReaderTests: XCTestCase {
@@ -33,6 +34,18 @@ final class PasteboardReaderTests: XCTestCase {
         XCTAssertNil(reader.readIfChanged())
     }
 
+    func testReadsImageBeforeString() throws {
+        let image = try makeTestImage()
+        let mock = MockPasteboard(changeCount: 5, string: "fallback")
+        mock.hasImages = true
+        mock.image = image
+        let reader = PasteboardReader(pasteboard: mock, readsInitialValue: true)
+
+        let clip = reader.readClipIfChanged()
+        XCTAssertEqual(clip?.kind, .image)
+        XCTAssertNotNil(clip?.data)
+    }
+
     func testPersistsLastSeenChangeCount() throws {
         let suiteName = "pasteboard-reader.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -56,9 +69,34 @@ final class PasteboardReaderTests: XCTestCase {
     }
 }
 
+private func makeTestImage() throws -> UIImage {
+    let data = Data([255, 0, 0, 255])
+    let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+    let cgImage = try XCTUnwrap(CGImage(
+        width: 1,
+        height: 1,
+        bitsPerComponent: 8,
+        bitsPerPixel: 32,
+        bytesPerRow: 4,
+        space: colorSpace,
+        bitmapInfo: bitmapInfo,
+        provider: provider,
+        decode: nil,
+        shouldInterpolate: false,
+        intent: .defaultIntent
+    ))
+    return UIImage(cgImage: cgImage)
+}
+
 private final class MockPasteboard: PasteboardProtocol {
     var changeCount: Int
     var hasStrings: Bool
+    var hasImages = false
+    var image: UIImage?
+    var hasURLs = false
+    var url: URL?
     var stringReadCount = 0
     private var backingString: String?
 

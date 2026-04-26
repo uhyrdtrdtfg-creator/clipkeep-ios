@@ -12,7 +12,12 @@ final class KeyboardViewController: UIInputViewController {
 
         let keyboardView = KeyboardView(
             store: store,
-            proxy: textDocumentProxy,
+            onSelect: { [weak self] item in
+                self?.handleSelection(item) ?? false
+            },
+            onDeleteBackward: { [weak self] in
+                self?.textDocumentProxy.deleteBackward()
+            },
             onDismiss: { [weak self] in self?.advanceToNextInputMode() }
         )
         let host = UIHostingController(rootView: keyboardView)
@@ -46,10 +51,23 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func capturePasteboardAndReload() {
-        if let text = reader.readIfChanged() {
-            ClipStore.shared.add(text)
+        if let clip = reader.readClipIfChanged() {
+            ClipStore.shared.add(clip)
         }
         store.reload()
+    }
+
+    private func handleSelection(_ item: ClipItem) -> Bool {
+        if item.kind == .text {
+            textDocumentProxy.insertText(item.content)
+            return true
+        }
+
+        let copied = ClipStore.shared.copyToPasteboard(item)
+        if copied {
+            reader.markCurrentChangeCountSeen()
+        }
+        return copied
     }
 
     override func viewWillLayoutSubviews() {
