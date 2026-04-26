@@ -27,6 +27,7 @@
 		A6F2C46FB0F7014B4E9D1A60 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B14270328140A331A8475B /* ContentView.swift */; };
 		B36FC4F2D4AA276CBF393D75 /* ClipRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E649BCD08F068FC6B27A1885 /* ClipRowView.swift */; };
 		B6E8BFBB1AE5C74829EAE69E /* ClipStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACED33F29B53FF8924C02BB /* ClipStoreTests.swift */; };
+		B939025B6AC2D1950E17811E /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6ACB6BF63E3EFB8656CB93E /* FavoritesView.swift */; };
 		E57A59952B748B4175C472EB /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CCBD782267FF2173642812 /* KeyboardView.swift */; };
 		E87AC9C0F2C322A7B62D70A2 /* ClipKeepApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0EB71AB2AB9BC2A97CA531 /* ClipKeepApp.swift */; };
 		EC770B7CCB888F60A495AEDE /* ClipListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8234ED0E44AF2D9B409B3E04 /* ClipListView.swift */; };
@@ -124,6 +125,7 @@
 		AC702D3CDD4F94B22C19F9E6 /* ClipKeepTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClipKeepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0EB71AB2AB9BC2A97CA531 /* ClipKeepApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipKeepApp.swift; sourceTree = "<group>"; };
 		D3B14270328140A331A8475B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D6ACB6BF63E3EFB8656CB93E /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		DD9BC5C808E0608C4E48D09B /* ClipStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipStore.swift; sourceTree = "<group>"; };
 		E649BCD08F068FC6B27A1885 /* ClipRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipRowView.swift; sourceTree = "<group>"; };
 		FD187EB861DE7815D30B613B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 			children = (
 				8234ED0E44AF2D9B409B3E04 /* ClipListView.swift */,
 				E649BCD08F068FC6B27A1885 /* ClipRowView.swift */,
+				D6ACB6BF63E3EFB8656CB93E /* FavoritesView.swift */,
 				9616C706534AC644BA4953DC /* OnboardingView.swift */,
 				09A03BFBDB16649FF08BD752 /* SettingsView.swift */,
 				39E921E434CEBDCD92D35FCF /* ToastView.swift */,
@@ -442,6 +445,7 @@
 				0DE6D883B0D884EBB0CC3F8F /* ClipListViewModel.swift in Sources */,
 				B36FC4F2D4AA276CBF393D75 /* ClipRowView.swift in Sources */,
 				A6F2C46FB0F7014B4E9D1A60 /* ContentView.swift in Sources */,
+				B939025B6AC2D1950E17811E /* FavoritesView.swift in Sources */,
 				9AE1B71D3015A7D200F75792 /* OnboardingView.swift in Sources */,
 				197997E9FCC4B53891DAD9C2 /* SettingsView.swift in Sources */,
 				6A54E2D58AF4D1661762858A /* ToastView.swift in Sources */,
@@ -523,10 +527,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 5;
+				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = ClipKeepCore/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -599,10 +603,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 5;
+				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = ClipKeepCore/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -673,7 +677,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 4257SFGRFK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -742,7 +746,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 4257SFGRFK;
 				ENABLE_NS_ASSERTIONS = NO;

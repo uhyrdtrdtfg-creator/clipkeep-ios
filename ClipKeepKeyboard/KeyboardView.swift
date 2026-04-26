@@ -12,6 +12,7 @@ struct KeyboardView: View {
     @State private var selectedFilter: ClipFilter = .all
     @State private var notice: String?
     @State private var noticeTask: Task<Void, Never>?
+    @State private var pendingPinItem: ClipItem?   // non-nil = category picker visible
 
     private var displayedItems: [ClipItem] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,6 +33,23 @@ struct KeyboardView: View {
         }
         .background(Color(UIColor.systemBackground))
         .onDisappear { noticeTask?.cancel() }
+        .overlay(alignment: .bottom) {
+            if let item = pendingPinItem {
+                CategoryPickerOverlay(
+                    item: item,
+                    existingCategories: ClipStore.shared.allPinnedCategories()
+                ) { category in
+                    ClipStore.shared.pin(id: item.id, category: category)
+                    store.reload()
+                    showNotice(category.map { "已收藏到「\($0)」" } ?? "已收藏")
+                    pendingPinItem = nil
+                } onCancel: {
+                    pendingPinItem = nil
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingPinItem == nil)
     }
 
     // MARK: – Top bar (search left, filter chips right)
@@ -99,9 +117,15 @@ struct KeyboardView: View {
                         ClipKeyboardCard(item: item) {
                             handleSelection(item)
                         } onPin: {
-                            ClipStore.shared.togglePin(id: item.id)
-                            store.reload()
-                            showNotice(item.isPinned ? "已取消收藏" : "已收藏")
+                            if item.isPinned {
+                                // already pinned → unpin
+                                ClipStore.shared.togglePin(id: item.id)
+                                store.reload()
+                                showNotice("已取消收藏")
+                            } else {
+                                // not pinned → show category picker
+                                withAnimation { pendingPinItem = item }
+                            }
                         }
                     }
                 }
@@ -422,6 +446,105 @@ private struct EmptyKeyboardState: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: – Category picker overlay
+
+private struct CategoryPickerOverlay: View {
+    let item: ClipItem
+    let existingCategories: [String]
+    let onConfirm: (String?) -> Void
+    let onCancel: () -> Void
+
+    @State private var selected: String? = nil
+    @State private var customText = ""
+    @State private var showCustomField = false
+
+    private let suggestions = ["工作", "个人", "常用", "灵感"]
+
+    var allChips: [String] {
+        var result = existingCategories
+        for s in suggestions where !result.contains(s) { result.append(s) }
+        return result
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(spacing: 10) {
+                // Title row
+                HStack {
+                    Button("取消", action: onCancel)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("收藏到…")
+                        .font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    Button {
+                        onConfirm(showCustomField && !customText.isEmpty ? customText : selected)
+                    } label: {
+                        Text("确定")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                // Category chips
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        // "不分类"
+                        chip(title: "不分类", icon: "star", isSelected: selected == nil && !showCustomField) {
+                            selected = nil; showCustomField = false
+                        }
+                        ForEach(allChips, id: \.self) { cat in
+                            chip(title: cat, icon: nil, isSelected: selected == cat && !showCustomField) {
+                                selected = cat; showCustomField = false
+                            }
+                        }
+                        // "新建"
+                        chip(title: "新建…", icon: "plus", isSelected: showCustomField) {
+                            showCustomField = true; selected = nil
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+
+                // Custom name input
+                if showCustomField {
+                    HStack(spacing: 6) {
+                        TextField("分类名称", text: $customText)
+                            .font(.system(size: 13))
+                            .autocorrectionDisabled()
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(Color(UIColor.secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+            .padding(.vertical, 10)
+            .background(Color(UIColor.systemBackground))
+        }
+    }
+
+    private func chip(title: String, icon: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if let icon { Image(systemName: icon).font(.system(size: 10)) }
+                Text(title).font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+            }
+            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(
+                isSelected ? Color.accentColor.opacity(0.12) : Color(UIColor.secondarySystemFill),
+                in: Capsule()
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

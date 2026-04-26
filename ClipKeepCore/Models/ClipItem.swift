@@ -40,6 +40,7 @@ public struct ClipItem: Codable, Identifiable, Equatable, Sendable {
     public var createdAt: Date
     public var updatedAt: Date
     public var isPinned: Bool
+    public var pinnedCategory: String?   // nil = 未分类收藏
     public let contentHash: String
     public var fileName: String?
     public var typeIdentifier: String?
@@ -54,6 +55,7 @@ public struct ClipItem: Codable, Identifiable, Equatable, Sendable {
         self.createdAt = date
         self.updatedAt = date
         self.isPinned = false
+        self.pinnedCategory = nil
         self.contentHash = Self.hash(content)
     }
 
@@ -74,6 +76,7 @@ public struct ClipItem: Codable, Identifiable, Equatable, Sendable {
         self.createdAt = date
         self.updatedAt = date
         self.isPinned = false
+        self.pinnedCategory = nil
         self.contentHash = contentHash
         self.fileName = fileName
         self.typeIdentifier = typeIdentifier
@@ -123,6 +126,7 @@ private extension ClipItem {
         case createdAt
         case updatedAt
         case isPinned
+        case pinnedCategory
         case contentHash
         case fileName
         case typeIdentifier
@@ -141,6 +145,7 @@ public extension ClipItem {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         isPinned = try container.decode(Bool.self, forKey: .isPinned)
+        pinnedCategory = try container.decodeIfPresent(String.self, forKey: .pinnedCategory)
         contentHash = try container.decode(String.self, forKey: .contentHash)
         fileName = try container.decodeIfPresent(String.self, forKey: .fileName)
         typeIdentifier = try container.decodeIfPresent(String.self, forKey: .typeIdentifier)

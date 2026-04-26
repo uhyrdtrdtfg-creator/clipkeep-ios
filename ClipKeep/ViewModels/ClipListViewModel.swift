@@ -67,7 +67,7 @@ final class ClipListViewModel: ObservableObject {
         reload()
     }
 
-    private func reload() {
+    func reload() {
         items = store.load()
     }
 }

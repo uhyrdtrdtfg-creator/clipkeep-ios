@@ -68,7 +68,35 @@ public final class ClipStore: @unchecked Sendable {
         var items = load()
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].isPinned.toggle()
+        if !items[idx].isPinned { items[idx].pinnedCategory = nil }
         save(items)
+    }
+
+    /// Pin an item into a specific category (creates pin if not already pinned).
+    public func pin(id: UUID, category: String?) {
+        var items = load()
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].isPinned = true
+        items[idx].pinnedCategory = category
+        save(items)
+    }
+
+    /// Move a pinned item to a different category.
+    public func setCategory(id: UUID, category: String?) {
+        var items = load()
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].pinnedCategory = category
+        save(items)
+    }
+
+    /// All distinct category names that have at least one pinned item.
+    public func allPinnedCategories() -> [String] {
+        load()
+            .filter { $0.isPinned }
+            .compactMap { $0.pinnedCategory }
+            .reduce(into: [String]()) { result, cat in
+                if !result.contains(cat) { result.append(cat) }
+            }
     }
 
     public func clearAll() {
