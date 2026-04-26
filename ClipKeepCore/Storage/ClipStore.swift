@@ -169,6 +169,23 @@ public final class ClipStore: @unchecked Sendable {
 
     public func getMaxCount() -> Int { maxCount }
 
+    // MARK: - Retention
+
+    /// 0 means "keep forever"; any positive value is a cutoff in days.
+    private var maxRetentionDays: Int {
+        defaults.integer(forKey: "max_retention_days") // 0 = forever (default)
+    }
+
+    public func getMaxRetentionDays() -> Int { maxRetentionDays }
+
+    public func setMaxRetentionDays(_ days: Int) {
+        defaults.set(days, forKey: "max_retention_days")
+        var items = load()
+        let removed = trim(&items)
+        save(items)
+        removeAssets(for: removed)
+    }
+
     // MARK: - Helpers
 
     private func addText(_ content: String) -> Bool {
@@ -231,10 +248,21 @@ public final class ClipStore: @unchecked Sendable {
         let original = items
         let pinned = items.filter { $0.isPinned }
         var unpinned = items.filter { !$0.isPinned }
+
+        // Age-based pruning: remove unpinned items whose updatedAt is beyond the retention window.
+        // Pinned items are exempt — the user explicitly wants to keep them.
+        let retentionDays = maxRetentionDays
+        if retentionDays > 0 {
+            let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86400)
+            unpinned = unpinned.filter { $0.updatedAt >= cutoff }
+        }
+
+        // Count-based pruning (applied after age pruning, so the two limits compound).
         let limit = max(0, maxCount - pinned.count)
         if unpinned.count > limit {
             unpinned = Array(unpinned.prefix(limit))
         }
+
         items = pinned + unpinned
         let keptIDs = Set(items.map(\.id))
         return original.filter { !keptIDs.contains($0.id) }

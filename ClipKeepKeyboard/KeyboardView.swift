@@ -14,6 +14,16 @@ struct KeyboardView: View {
     @State private var noticeTask: Task<Void, Never>?
     @State private var pendingPinItem: ClipItem?   // non-nil = category picker visible
 
+    /// Static filters + one chip per pinned category (inserted after .pinned)
+    private var allFilters: [ClipFilter] {
+        let cats = store.pinnedCategories.map { ClipFilter.category($0) }
+        var result = ClipFilter.staticFilters
+        if let idx = result.firstIndex(of: .pinned) {
+            result.insert(contentsOf: cats, at: result.index(after: idx))
+        }
+        return result
+    }
+
     private var displayedItems: [ClipItem] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return store.items
@@ -79,10 +89,10 @@ struct KeyboardView: View {
             .background(Color(UIColor.secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
             .frame(maxWidth: 140)
 
-            // Filter chips
+            // Filter chips: static + dynamic category chips after 收藏
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 5) {
-                    ForEach(ClipFilter.allCases) { filter in
+                    ForEach(allFilters) { filter in
                         FilterChip(
                             title: filter.title,
                             icon: filter.icon,
@@ -198,39 +208,60 @@ struct KeyboardView: View {
 
 // MARK: – Filter model
 
-private enum ClipFilter: String, CaseIterable, Identifiable {
-    case all, pinned, text, image, file
-    var id: String { rawValue }
+private enum ClipFilter: Equatable, Identifiable {
+    case all
+    case category(String)   // specific pinned category
+    case pinned             // all pinned (no category set)
+    case text
+    case image
+    case file
+
+    var id: String {
+        switch self {
+        case .all:             return "all"
+        case .category(let c): return "cat_\(c)"
+        case .pinned:          return "pinned"
+        case .text:            return "text"
+        case .image:           return "image"
+        case .file:            return "file"
+        }
+    }
 
     var title: String {
         switch self {
-        case .all:    return "全部"
-        case .pinned: return "收藏"
-        case .text:   return "文本"
-        case .image:  return "图片"
-        case .file:   return "文件"
+        case .all:             return "全部"
+        case .category(let c): return c
+        case .pinned:          return "收藏"
+        case .text:            return "文本"
+        case .image:           return "图片"
+        case .file:            return "文件"
         }
     }
 
     var icon: String {
         switch self {
-        case .all:    return "tray.full"
-        case .pinned: return "star.fill"
-        case .text:   return "text.alignleft"
-        case .image:  return "photo"
-        case .file:   return "doc"
+        case .all:             return "tray.full"
+        case .category:        return "folder.fill"
+        case .pinned:          return "star.fill"
+        case .text:            return "text.alignleft"
+        case .image:           return "photo"
+        case .file:            return "doc"
         }
     }
 
     func matches(_ item: ClipItem) -> Bool {
         switch self {
-        case .all:    return true
-        case .pinned: return item.isPinned
-        case .text:   return item.kind == .text
-        case .image:  return item.kind == .image
-        case .file:   return item.kind == .file
+        case .all:             return true
+        case .category(let c): return item.isPinned && item.pinnedCategory == c
+        case .pinned:          return item.isPinned
+        case .text:            return item.kind == .text
+        case .image:           return item.kind == .image
+        case .file:            return item.kind == .file
         }
     }
+
+    /// Static chips always shown; category chips are inserted dynamically.
+    static let staticFilters: [ClipFilter] = [.all, .pinned, .text, .image, .file]
 }
 
 // MARK: – Filter chip

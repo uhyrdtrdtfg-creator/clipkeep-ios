@@ -3,10 +3,19 @@ import ClipKeepCore
 
 struct SettingsView: View {
     @State private var maxCount: Int = ClipStore.shared.getMaxCount()
+    @State private var maxRetentionDays: Int = ClipStore.shared.getMaxRetentionDays()
     @State private var showClearAllAlert = false
     @State private var showClearUnpinnedAlert = false
 
     private let maxOptions = [100, 200, 500, 1000]
+    private let retentionOptions: [(label: String, days: Int)] = [
+        ("永久保存", 0),
+        ("7 天", 7),
+        ("30 天", 30),
+        ("3 个月", 90),
+        ("6 个月", 180),
+        ("1 年", 365),
+    ]
 
     var body: some View {
         Form {
@@ -18,6 +27,15 @@ struct SettingsView: View {
                 }
                 .onChange(of: maxCount) { v in
                     ClipStore.shared.setMaxCount(v)
+                }
+
+                Picker("最长保存时间", selection: $maxRetentionDays) {
+                    ForEach(retentionOptions, id: \.days) { opt in
+                        Text(opt.label).tag(opt.days)
+                    }
+                }
+                .onChange(of: maxRetentionDays) { v in
+                    ClipStore.shared.setMaxRetentionDays(v)
                 }
             }
 
