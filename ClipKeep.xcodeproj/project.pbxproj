@@ -10,6 +10,7 @@
 		0609DF6358B34E6D2B58ED5B /* ClipItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5790D395156436A487841ADF /* ClipItem.swift */; };
 		07D4392D851EE26FF6683750 /* PasteboardReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB0D7B9E2C00A7F4BEC7EEF /* PasteboardReader.swift */; };
 		0DE6D883B0D884EBB0CC3F8F /* ClipListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C820884F8409C9CC6C545A /* ClipListViewModel.swift */; };
+		0FDC0B9871D6F7A7EABF0571 /* ClipKeepCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26873290336548178C679CFB /* ClipKeepCore.framework */; };
 		197997E9FCC4B53891DAD9C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A03BFBDB16649FF08BD752 /* SettingsView.swift */; };
 		19D24D93962155A0022980DE /* ClipKeepCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26873290336548178C679CFB /* ClipKeepCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		21CE8992C987E16DB80D6B95 /* ClipKeepCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26873290336548178C679CFB /* ClipKeepCore.framework */; };
@@ -22,9 +23,11 @@
 		5727E2AFAD3332DAC236B091 /* KeyboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9747A723C6A797FF921D8D6F /* KeyboardStore.swift */; };
 		5BB22DC2C7FD024CF37DC2E3 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106EB4AA5EDA628FF0D8F3B4 /* KeyboardViewController.swift */; };
 		6A54E2D58AF4D1661762858A /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39E921E434CEBDCD92D35FCF /* ToastView.swift */; };
+		8FFE8F864D96ADAA1EF695B6 /* ClipKeepShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 35DD1DBA5AFE739F0697ED15 /* ClipKeepShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9AE1B71D3015A7D200F75792 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9616C706534AC644BA4953DC /* OnboardingView.swift */; };
 		A1E84E5B6CD31D9EFFD22134 /* ClipKeepCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26873290336548178C679CFB /* ClipKeepCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A6F2C46FB0F7014B4E9D1A60 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B14270328140A331A8475B /* ContentView.swift */; };
+		AB8417045469B80BA3868F6A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29349D3635401A690DE52E60 /* ShareViewController.swift */; };
 		B36FC4F2D4AA276CBF393D75 /* ClipRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E649BCD08F068FC6B27A1885 /* ClipRowView.swift */; };
 		B6E8BFBB1AE5C74829EAE69E /* ClipStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACED33F29B53FF8924C02BB /* ClipStoreTests.swift */; };
 		B939025B6AC2D1950E17811E /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6ACB6BF63E3EFB8656CB93E /* FavoritesView.swift */; };
@@ -35,6 +38,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0E283BEF701BB7D88EE180F2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E84DAABBB1E4B4849B2177A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC07ADB2CA5FF623E7FC7178;
+			remoteInfo = ClipKeepCore;
+		};
 		295DE448AE9AA375BA4028FF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E84DAABBB1E4B4849B2177A8 /* Project object */;
@@ -63,6 +73,13 @@
 			remoteGlobalIDString = CC07ADB2CA5FF623E7FC7178;
 			remoteInfo = ClipKeepCore;
 		};
+		FD0AC97308744C56603C1586 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E84DAABBB1E4B4849B2177A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21E17586ED5E599702CA655A;
+			remoteInfo = ClipKeepShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -73,6 +90,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				3B84E38317F3E5EAB711DB03 /* ClipKeepKeyboard.appex in Embed Foundation Extensions */,
+				8FFE8F864D96ADAA1EF695B6 /* ClipKeepShare.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -107,9 +125,12 @@
 		23E672571575BF281D2F77F1 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
 		26873290336548178C679CFB /* ClipKeepCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ClipKeepCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		28CCBD782267FF2173642812 /* KeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardView.swift; sourceTree = "<group>"; };
+		29349D3635401A690DE52E60 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		35DD1DBA5AFE739F0697ED15 /* ClipKeepShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ClipKeepShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		368DB2E6AE2512B51189BD7E /* ClipKeepKeyboard.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ClipKeepKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		39E921E434CEBDCD92D35FCF /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		3C858325EEB3492776D160C4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3E6797E4FD25A028DD73348F /* ClipKeepShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClipKeepShare.entitlements; sourceTree = "<group>"; };
 		5790D395156436A487841ADF /* ClipItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipItem.swift; sourceTree = "<group>"; };
 		5B0716F2D8A024696368E1E0 /* ClipKeepKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClipKeepKeyboard.entitlements; sourceTree = "<group>"; };
 		60F6128EECBA960AF175769A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -124,6 +145,7 @@
 		AAB0D7B9E2C00A7F4BEC7EEF /* PasteboardReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardReader.swift; sourceTree = "<group>"; };
 		AC702D3CDD4F94B22C19F9E6 /* ClipKeepTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClipKeepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0EB71AB2AB9BC2A97CA531 /* ClipKeepApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipKeepApp.swift; sourceTree = "<group>"; };
+		D032C41EB6849EE8DAD8FB24 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D3B14270328140A331A8475B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D6ACB6BF63E3EFB8656CB93E /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		DD9BC5C808E0608C4E48D09B /* ClipStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipStore.swift; sourceTree = "<group>"; };
@@ -146,6 +168,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				2C1BB32065095A8ABD9A483D /* ClipKeepCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		78B59B243D1E84CD687BF946 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FDC0B9871D6F7A7EABF0571 /* ClipKeepCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,6 +213,16 @@
 			path = ClipKeepKeyboard;
 			sourceTree = "<group>";
 		};
+		25D70B7FFC30C6751222E76B /* ClipKeepShare */ = {
+			isa = PBXGroup;
+			children = (
+				3E6797E4FD25A028DD73348F /* ClipKeepShare.entitlements */,
+				D032C41EB6849EE8DAD8FB24 /* Info.plist */,
+				29349D3635401A690DE52E60 /* ShareViewController.swift */,
+			);
+			path = ClipKeepShare;
+			sourceTree = "<group>";
+		};
 		468A33167F68FAFF5C3D6AFF /* Pasteboard */ = {
 			isa = PBXGroup;
 			children = (
@@ -211,6 +251,7 @@
 				A0BC4EA0FF43080365DB24E3 /* ClipKeep.app */,
 				26873290336548178C679CFB /* ClipKeepCore.framework */,
 				368DB2E6AE2512B51189BD7E /* ClipKeepKeyboard.appex */,
+				35DD1DBA5AFE739F0697ED15 /* ClipKeepShare.appex */,
 				AC702D3CDD4F94B22C19F9E6 /* ClipKeepTests.xctest */,
 			);
 			name = Products;
@@ -269,6 +310,7 @@
 				49806ACD5005F5F9879284C7 /* ClipKeep */,
 				010244D7EAA19BE1B142AD7F /* ClipKeepCore */,
 				0D3261A0A4F78052DB794EAB /* ClipKeepKeyboard */,
+				25D70B7FFC30C6751222E76B /* ClipKeepShare */,
 				91D4C7F7C15D9FED947C1306 /* ClipKeepTests */,
 				74DF83A7AAFC282DD2D93359 /* Products */,
 			);
@@ -277,6 +319,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		21E17586ED5E599702CA655A /* ClipKeepShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2821752EDCFA3333993531A4 /* Build configuration list for PBXNativeTarget "ClipKeepShare" */;
+			buildPhases = (
+				1E8CD36B77F3C0F5BF332A7D /* Sources */,
+				78B59B243D1E84CD687BF946 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				27E831085936C8CE569228E9 /* PBXTargetDependency */,
+			);
+			name = ClipKeepShare;
+			packageProductDependencies = (
+			);
+			productName = ClipKeepShare;
+			productReference = 35DD1DBA5AFE739F0697ED15 /* ClipKeepShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		62DBB26F8A34EE9C68A085B7 /* ClipKeepKeyboard */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CB9DCE8E48AD94731073DC96 /* Build configuration list for PBXNativeTarget "ClipKeepKeyboard" */;
@@ -311,6 +372,7 @@
 			dependencies = (
 				F5EBEFC0E4550848D984AD25 /* PBXTargetDependency */,
 				EDB04FF5F1FFC05B5848B550 /* PBXTargetDependency */,
+				7758443225CC3C4B52FE011C /* PBXTargetDependency */,
 			);
 			name = ClipKeep;
 			packageProductDependencies = (
@@ -365,6 +427,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					21E17586ED5E599702CA655A = {
+						DevelopmentTeam = 4257SFGRFK;
+						ProvisioningStyle = Automatic;
+					};
 					62DBB26F8A34EE9C68A085B7 = {
 						DevelopmentTeam = 4257SFGRFK;
 						ProvisioningStyle = Automatic;
@@ -400,6 +466,7 @@
 				7709041434DECF2DEBB611DD /* ClipKeep */,
 				CC07ADB2CA5FF623E7FC7178 /* ClipKeepCore */,
 				62DBB26F8A34EE9C68A085B7 /* ClipKeepKeyboard */,
+				21E17586ED5E599702CA655A /* ClipKeepShare */,
 				8E3124B9AA5311EC60EC9357 /* ClipKeepTests */,
 			);
 		};
@@ -424,6 +491,14 @@
 				5727E2AFAD3332DAC236B091 /* KeyboardStore.swift in Sources */,
 				E57A59952B748B4175C472EB /* KeyboardView.swift in Sources */,
 				5BB22DC2C7FD024CF37DC2E3 /* KeyboardViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1E8CD36B77F3C0F5BF332A7D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB8417045469B80BA3868F6A /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -466,6 +541,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		27E831085936C8CE569228E9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC07ADB2CA5FF623E7FC7178 /* ClipKeepCore */;
+			targetProxy = 0E283BEF701BB7D88EE180F2 /* PBXContainerItemProxy */;
+		};
+		7758443225CC3C4B52FE011C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 21E17586ED5E599702CA655A /* ClipKeepShare */;
+			targetProxy = FD0AC97308744C56603C1586 /* PBXContainerItemProxy */;
+		};
 		AB6C07AA1379AC5C1F23A034 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CC07ADB2CA5FF623E7FC7178 /* ClipKeepCore */;
@@ -489,6 +574,23 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0959489E7CF4E9219779BA85 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ClipKeepShare/ClipKeepShare.entitlements;
+				INFOPLIST_FILE = ClipKeepShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sam.clipkeep.ios.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 		24543B2441ED353DED7CB119 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -527,10 +629,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 2;
+				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = ClipKeepCore/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -544,6 +646,23 @@
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		582B430EE0C50D920E6BE53C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ClipKeepShare/ClipKeepShare.entitlements;
+				INFOPLIST_FILE = ClipKeepShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sam.clipkeep.ios.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -603,10 +722,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 2;
+				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = ClipKeepCore/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -677,7 +796,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 4257SFGRFK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -746,7 +865,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 4257SFGRFK;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -775,6 +894,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2821752EDCFA3333993531A4 /* Build configuration list for PBXNativeTarget "ClipKeepShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0959489E7CF4E9219779BA85 /* Debug */,
+				582B430EE0C50D920E6BE53C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4C42284BC23CD3ACCB1ECD0D /* Build configuration list for PBXNativeTarget "ClipKeepTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

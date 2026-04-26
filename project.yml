@@ -54,6 +54,8 @@ targets:
       - target: ClipKeepCore
       - target: ClipKeepKeyboard
         embed: true
+      - target: ClipKeepShare
+        embed: true
     entitlements:
       path: ClipKeep/ClipKeep.entitlements
       properties:
@@ -79,6 +81,26 @@ targets:
       - target: ClipKeepCore
     entitlements:
       path: ClipKeepKeyboard/ClipKeepKeyboard.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.clipkeep.ios
+
+  # ── Share Extension ───────────────────────────────────────────────────────
+  ClipKeepShare:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ClipKeepShare
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sam.clipkeep.ios.share
+        INFOPLIST_FILE: ClipKeepShare/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: ClipKeepCore
+    entitlements:
+      path: ClipKeepShare/ClipKeepShare.entitlements
       properties:
         com.apple.security.application-groups:
           - group.app.clipkeep.ios
