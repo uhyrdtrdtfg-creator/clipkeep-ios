@@ -1,7 +1,9 @@
 # Xcode user state
+.DS_Store
 *.xcuserstate
 xcuserdata/
 DerivedData/
+build/
 
 # Credentials
 .appstore-credentials

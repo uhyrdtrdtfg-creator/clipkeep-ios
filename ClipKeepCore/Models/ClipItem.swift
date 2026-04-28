@@ -41,6 +41,7 @@ public struct ClipItem: Codable, Identifiable, Equatable, Sendable {
     public var updatedAt: Date
     public var isPinned: Bool
     public var pinnedCategory: String?   // nil = 未分类收藏
+    public var recognizedText: String?   // cached OCR result for image items
     public let contentHash: String
     public var fileName: String?
     public var typeIdentifier: String?
@@ -102,7 +103,8 @@ public struct ClipItem: Codable, Identifiable, Equatable, Sendable {
     }
 
     public var searchableText: String {
-        [content, fileName, typeIdentifier]
+        // Include recognizedText so OCR-scanned images become searchable by their content.
+        [content, fileName, typeIdentifier, recognizedText]
             .compactMap { $0 }
             .joined(separator: " ")
     }
@@ -127,6 +129,7 @@ private extension ClipItem {
         case updatedAt
         case isPinned
         case pinnedCategory
+        case recognizedText
         case contentHash
         case fileName
         case typeIdentifier
@@ -146,6 +149,7 @@ public extension ClipItem {
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         isPinned = try container.decode(Bool.self, forKey: .isPinned)
         pinnedCategory = try container.decodeIfPresent(String.self, forKey: .pinnedCategory)
+        recognizedText = try container.decodeIfPresent(String.self, forKey: .recognizedText)
         contentHash = try container.decode(String.self, forKey: .contentHash)
         fileName = try container.decodeIfPresent(String.self, forKey: .fileName)
         typeIdentifier = try container.decodeIfPresent(String.self, forKey: .typeIdentifier)

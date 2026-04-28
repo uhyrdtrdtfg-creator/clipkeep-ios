@@ -105,8 +105,8 @@ struct ClipListView: View {
         .sheet(item: $detailItem) { item in
             ClipDetailView(item: item)
         }
-        .onChange(of: scenePhase) { _, new in
-            if new == .active { vm.onForeground() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { vm.onForeground() }
         }
     }
 

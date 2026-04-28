@@ -1,6 +1,5 @@
 import SwiftUI
 import Vision
-import Translation
 import ClipKeepCore
 
 // MARK: – Detail view for image / file clipboard items
@@ -11,7 +10,6 @@ struct ClipDetailView: View {
 
     @State private var recognizedText: String
     @State private var isRecognizing = false
-    @State private var showTranslation = false
     @State private var copiedOCR = false
     @State private var showCopyToast = false
 
@@ -170,38 +168,24 @@ struct ClipDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
 
-        HStack(spacing: 10) {
-            // Copy OCR text to clipboard
-            Button {
-                UIPasteboard.general.string = recognizedText
-                copiedOCR = true
-                Task {
-                    try? await Task.sleep(for: .seconds(1.5))
-                    copiedOCR = false
-                }
-            } label: {
-                Label(copiedOCR ? "已复制" : "复制文字",
-                      systemImage: copiedOCR ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(Color(UIColor.tertiarySystemBackground),
-                                in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(.primary)
+        Button {
+            UIPasteboard.general.string = recognizedText
+            copiedOCR = true
+            Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                copiedOCR = false
             }
-            .buttonStyle(.plain)
-            .animation(.easeInOut(duration: 0.2), value: copiedOCR)
-
-            // System translation overlay (iOS 17.4+ Translation framework)
-            Button { showTranslation = true } label: {
-                Label("翻译成中文", systemImage: "translate")
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(.white)
-            }
-            .buttonStyle(.plain)
-            .translationPresentation(isPresented: $showTranslation, text: recognizedText)
+        } label: {
+            Label(copiedOCR ? "已复制" : "复制文字",
+                  systemImage: copiedOCR ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity, minHeight: 42)
+                .background(Color(UIColor.tertiarySystemBackground),
+                            in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.primary)
         }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: copiedOCR)
     }
 
     // MARK: – Vision OCR

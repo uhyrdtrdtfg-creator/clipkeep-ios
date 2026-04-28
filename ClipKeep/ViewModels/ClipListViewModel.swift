@@ -24,7 +24,7 @@ final class ClipListViewModel: ObservableObject {
         self.defaults = defaults
         self.reader = PasteboardReader(defaults: defaults, readsInitialValue: true)
         reload()
-        store.onChange = { [weak self] in
+        store.onChange = { @Sendable [weak self] in
             Task { @MainActor in self?.reload() }
         }
 

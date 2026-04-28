@@ -13,8 +13,8 @@ public final class ClipStore: @unchecked Sendable {
     private let decoder = JSONDecoder()
     private let maxAssetBytes = 25 * 1024 * 1024
 
-    // Callbacks are dispatched on the main queue.
-    public var onChange: (() -> Void)?
+    // Callback dispatched on the main actor after every mutation.
+    public var onChange: (@Sendable () -> Void)?
 
     public init(
         defaults: UserDefaults = AppGroup.defaults,
@@ -78,6 +78,15 @@ public final class ClipStore: @unchecked Sendable {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].isPinned = true
         items[idx].pinnedCategory = category
+        save(items)
+    }
+
+    /// Cache the OCR-recognized text for an image item so it persists across sessions
+    /// and makes the image searchable by its content.
+    public func saveRecognizedText(id: UUID, text: String) {
+        var items = load()
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].recognizedText = text
         save(items)
     }
 
@@ -271,8 +280,8 @@ public final class ClipStore: @unchecked Sendable {
     private func save(_ items: [ClipItem]) {
         guard let data = try? encoder.encode(items) else { return }
         defaults.set(data, forKey: key)
-        DispatchQueue.main.async { [weak self] in
-            self?.onChange?()
+        if let cb = onChange {
+            Task { @MainActor in cb() }
         }
     }
 

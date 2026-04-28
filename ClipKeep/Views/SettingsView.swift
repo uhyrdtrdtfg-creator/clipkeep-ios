@@ -25,8 +25,8 @@ struct SettingsView: View {
                         Text("\(n) 条").tag(n)
                     }
                 }
-                .onChange(of: maxCount) { _, v in
-                    ClipStore.shared.setMaxCount(v)
+                .onChange(of: maxCount) { value in
+                    ClipStore.shared.setMaxCount(value)
                 }
 
                 Picker("最长保存时间", selection: $maxRetentionDays) {
@@ -34,8 +34,8 @@ struct SettingsView: View {
                         Text(opt.label).tag(opt.days)
                     }
                 }
-                .onChange(of: maxRetentionDays) { _, v in
-                    ClipStore.shared.setMaxRetentionDays(v)
+                .onChange(of: maxRetentionDays) { value in
+                    ClipStore.shared.setMaxRetentionDays(value)
                 }
             }
 
