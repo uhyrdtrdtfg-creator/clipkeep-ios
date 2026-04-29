@@ -38,13 +38,11 @@ struct KeyboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar           // search + filter chips — 44 pt
-            Divider().opacity(0.4)
-            content          // cards — flex
-            Divider().opacity(0.4)
-            toolbar          // globe / status / delete — 44 pt
+            topBar
+            content
+            toolbar
         }
-        .background(Color(UIColor.systemBackground))
+        .background(Color(UIColor.systemGroupedBackground))
         .onDisappear { noticeTask?.cancel() }
         .overlay(alignment: .bottom) {
             // Image action overlay takes priority; category picker is shown after "收藏" is chosen.
@@ -89,53 +87,67 @@ struct KeyboardView: View {
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingImageActionItem == nil)
     }
 
-    // MARK: – Top bar (search left, filter chips right)
+    // MARK: – Top bar
 
     private var topBar: some View {
         HStack(spacing: 8) {
-            // Search field
-            HStack(spacing: 5) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                TextField("搜索", text: $searchText)
-                    .font(.system(size: 13))
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                if !searchText.isEmpty {
-                    Button { searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .background(Color(UIColor.secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
-            .frame(maxWidth: 140)
+            searchField
+                .frame(maxWidth: 138)
+            filterBar
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(height: 46)
+        .background(Color(UIColor.systemBackground))
+    }
 
-            // Filter chips: static + dynamic category chips after 收藏
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 5) {
-                    ForEach(allFilters) { filter in
-                        FilterChip(
-                            title: filter.title,
-                            icon: filter.icon,
-                            isSelected: selectedFilter == filter
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedFilter = filter
-                            }
+    private var searchField: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.tertiary)
+
+            TextField("搜索", text: $searchText)
+                .font(.system(size: 13))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color(UIColor.separator).opacity(0.35), lineWidth: 0.5)
+        )
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(allFilters) { filter in
+                    FilterChip(
+                        title: filter.title,
+                        icon: filter.icon,
+                        isSelected: selectedFilter == filter
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedFilter = filter
                         }
                     }
                 }
-                .padding(.horizontal, 2)
             }
+            .padding(.horizontal, 1)
         }
-        .padding(.horizontal, 12)
-        .frame(height: 44)
+        .frame(height: 30)
     }
 
     // MARK: – Content
@@ -148,31 +160,20 @@ struct KeyboardView: View {
         } else if displayedItems.isEmpty {
             EmptyKeyboardState(icon: "magnifyingglass", title: "无匹配结果")
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 8) {
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 6) {
                     ForEach(displayedItems) { item in
-                        ClipKeyboardCard(item: item) {
+                        ClipHistoryRow(item: item) {
                             handleSelection(item)
                         } onPin: {
-                            if item.kind == .image {
-                                // Image items: show action overlay so user can choose
-                                // between OCR-to-input and pinning.
-                                withAnimation { pendingImageActionItem = item }
-                            } else if item.isPinned {
-                                // Already pinned → unpin immediately
-                                ClipStore.shared.togglePin(id: item.id)
-                                store.reload()
-                                showNotice("已取消收藏")
-                            } else {
-                                // Not pinned → show category picker
-                                withAnimation { pendingPinItem = item }
-                            }
+                            handlePin(item)
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
             }
+            .background(Color(UIColor.systemGroupedBackground))
         }
     }
 
@@ -215,7 +216,8 @@ struct KeyboardView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
-        .frame(height: 44)
+        .frame(height: 42)
+        .background(Color(UIColor.systemBackground))
         .animation(.easeInOut(duration: 0.15), value: notice)
     }
 
@@ -224,6 +226,18 @@ struct KeyboardView: View {
     private func handleSelection(_ item: ClipItem) {
         let ok = onSelect(item)
         showNotice(ok ? (item.kind == .text ? "已输入" : "已复制") : "操作失败")
+    }
+
+    private func handlePin(_ item: ClipItem) {
+        if item.kind == .image {
+            withAnimation { pendingImageActionItem = item }
+        } else if item.isPinned {
+            ClipStore.shared.togglePin(id: item.id)
+            store.reload()
+            showNotice("已取消收藏")
+        } else {
+            withAnimation { pendingPinItem = item }
+        }
     }
 
     private func showNotice(_ text: String) {
@@ -348,184 +362,195 @@ private struct FilterChip: View {
     let isSelected: Bool
     let action: () -> Void
 
+    private var showsTitle: Bool {
+        isSelected || icon == "folder.fill"
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 3) {
+            HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 9, weight: .medium))
-                Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 14)
+
+                if showsTitle {
+                    Text(title)
+                        .font(.system(size: 11.5, weight: isSelected ? .semibold : .regular))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 88)
+                }
             }
             .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 24)
+            .padding(.horizontal, showsTitle ? 9 : 0)
+            .frame(width: showsTitle ? nil : 30, height: 28)
             .background(
                 isSelected
                     ? Color.accentColor.opacity(0.12)
-                    : Color(UIColor.secondarySystemFill),
-                in: Capsule()
+                    : Color(UIColor.secondarySystemBackground),
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay(
-                Capsule()
-                    .strokeBorder(isSelected ? Color.accentColor.opacity(0.3) : .clear, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(
+                        isSelected ? Color.accentColor.opacity(0.35) : Color(UIColor.separator).opacity(0.25),
+                        lineWidth: 0.5
+                    )
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 
-// MARK: – Card
+// MARK: – History row
 
-private struct ClipKeyboardCard: View {
+private struct ClipHistoryRow: View {
     let item: ClipItem
     let onTap: () -> Void
     let onPin: () -> Void
 
-    @State private var pressed = false
-
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
-                // Header row: type badge + pin star + time
-                HStack(spacing: 4) {
-                    TypeBadge(kind: item.kind)
-                    if item.isPinned {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.yellow)
-                    }
-                    Spacer(minLength: 0)
-                    Text(item.updatedAt.relativeString)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-                .padding(.bottom, 7)
+            HStack(spacing: 10) {
+                ClipPreview(item: item)
 
-                // Content preview
-                switch item.kind {
-                case .text:
-                    Text(item.content)
-                        .lineLimit(5)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                case .image:
-                    ImagePreview(store: ClipStore.shared, item: item)
-                case .file:
-                    FilePreview(item: item)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(item.keyboardTitle)
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(item.kind == .text ? 2 : 1)
+                            .truncationMode(.tail)
+
+                        Spacer(minLength: 4)
+
+                        if item.isPinned {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.yellow)
+                        }
+                    }
+
+                    HStack(spacing: 5) {
+                        KindMeta(kind: item.kind)
+                        Text(item.updatedAt.relativeString)
+                        if let detail = item.keyboardDetail {
+                            Text(detail)
+                        }
+                    }
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
+
+                Image(systemName: item.kind == .text ? "return" : "doc.on.clipboard")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 18)
             }
-            .padding(10)
-            .frame(width: 148, height: 112)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
             .background(
                 item.isPinned
                     ? Color.yellow.opacity(0.08)
                     : Color(UIColor.secondarySystemGroupedBackground)
+                ,
+                in: RoundedRectangle(cornerRadius: 8)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 13))
             .overlay(
-                RoundedRectangle(cornerRadius: 13)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(
                         item.isPinned
-                            ? Color.yellow.opacity(0.4)
-                            : Color(UIColor.separator).opacity(0.5),
+                            ? Color.yellow.opacity(0.35)
+                            : Color(UIColor.separator).opacity(0.32),
                         lineWidth: 0.5
                     )
             )
-            .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
-            .scaleEffect(pressed ? 0.95 : 1)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KeyboardRowButtonStyle())
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in onPin() }
         )
-        ._onButtonGesture(pressing: { p in
-            withAnimation(.easeInOut(duration: 0.1)) { pressed = p }
-        }, perform: {})
     }
 }
 
-// MARK: – Type badge
+private struct KeyboardRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
 
-private struct TypeBadge: View {
+private struct KindMeta: View {
     let kind: ClipKind
 
     var body: some View {
-        Label(label, systemImage: icon)
-            .font(.system(size: 9.5, weight: .medium))
-            .foregroundStyle(color)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.12), in: Capsule())
-    }
-
-    private var label: String {
-        switch kind {
-        case .text:  return "文本"
-        case .image: return "图片"
-        case .file:  return "文件"
-        }
-    }
-    private var icon: String {
-        switch kind {
-        case .text:  return "text.alignleft"
-        case .image: return "photo"
-        case .file:  return "doc"
-        }
-    }
-    private var color: Color {
-        switch kind {
-        case .text:  return .secondary
-        case .image: return .blue
-        case .file:  return .orange
-        }
+        Label(kind.label, systemImage: kind.icon)
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(kind.tint)
     }
 }
 
-// MARK: – Image preview
+// MARK: – Preview
 
-private struct ImagePreview: View {
-    let store: ClipStore
+private struct ClipPreview: View {
     let item: ClipItem
 
     var body: some View {
-        Group {
-            if let url = store.thumbnailURL(for: item) ?? store.assetURL(for: item),
-               let uiImage = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else {
-                Image(systemName: "photo")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ZStack {
+            switch item.kind {
+            case .image:
+                imageContent
+            case .text:
+                iconContent(systemName: "text.alignleft")
+            case .file:
+                fileContent
+            }
+        }
+        .frame(width: 42, height: 42)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var imageContent: some View {
+        if let url = ClipStore.shared.thumbnailURL(for: item) ?? ClipStore.shared.assetURL(for: item),
+           let uiImage = UIImage(contentsOfFile: url.path) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 42, height: 42)
+        } else {
+            iconContent(systemName: "photo")
+        }
+    }
+
+    private var fileContent: some View {
+        ZStack(alignment: .bottomTrailing) {
+            iconContent(systemName: "doc.fill")
+            if let ext = item.fileExtensionLabel {
+                Text(ext)
+                    .font(.system(size: 7.5, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .frame(height: 13)
+                    .background(item.kind.tint, in: RoundedRectangle(cornerRadius: 4))
+                    .padding(3)
             }
         }
     }
-}
 
-// MARK: – File preview
-
-private struct FilePreview: View {
-    let item: ClipItem
-
-    var body: some View {
-        VStack(spacing: 5) {
-            Image(systemName: "doc.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(.orange.opacity(0.8))
-            Text(item.fileName ?? item.content)
-                .lineLimit(3)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private func iconContent(systemName: String) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(item.kind.tint.opacity(0.12))
+            .overlay(
+                Image(systemName: systemName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(item.kind.tint)
+            )
     }
 }
 
@@ -726,5 +751,75 @@ private extension Date {
         if diff < 3600  { return "\(diff / 60)分前" }
         if diff < 86400 { return "\(diff / 3600)小时前" }
         return "\(diff / 86400)天前"
+    }
+}
+
+private extension ClipItem {
+    var keyboardTitle: String {
+        switch kind {
+        case .text:
+            let compact = content
+                .replacingOccurrences(of: "\n", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return compact.isEmpty ? "空文本" : compact
+        case .image:
+            if let recognizedText, !recognizedText.isEmpty {
+                return recognizedText
+                    .replacingOccurrences(of: "\n", with: " ")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return fileName ?? "图片"
+        case .file:
+            return fileName ?? content
+        }
+    }
+
+    var keyboardDetail: String? {
+        var parts: [String] = []
+        if let pinnedCategory, !pinnedCategory.isEmpty {
+            parts.append(pinnedCategory)
+        }
+        switch kind {
+        case .text:
+            parts.append("\(content.count)字")
+        case .image, .file:
+            if let byteCount {
+                parts.append(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))
+            }
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    var fileExtensionLabel: String? {
+        guard kind == .file else { return nil }
+        let ext = URL(fileURLWithPath: fileName ?? content).pathExtension
+        guard !ext.isEmpty else { return nil }
+        return String(ext.prefix(4)).uppercased()
+    }
+}
+
+private extension ClipKind {
+    var label: String {
+        switch self {
+        case .text: return "文本"
+        case .image: return "图片"
+        case .file: return "文件"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .text: return "text.alignleft"
+        case .image: return "photo"
+        case .file: return "doc"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .text: return .blue
+        case .image: return .green
+        case .file: return .orange
+        }
     }
 }
