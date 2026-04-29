@@ -34,7 +34,7 @@ public final class ClipStore: @unchecked Sendable {
               let items = try? decoder.decode([ClipItem].self, from: data) else {
             return []
         }
-        return items
+        return sortedByRecency(items)
     }
 
     // MARK: - Write
@@ -272,17 +272,31 @@ public final class ClipStore: @unchecked Sendable {
             unpinned = Array(unpinned.prefix(limit))
         }
 
-        items = pinned + unpinned
+        items = sortedByRecency(pinned + unpinned)
         let keptIDs = Set(items.map(\.id))
         return original.filter { !keptIDs.contains($0.id) }
     }
 
     private func save(_ items: [ClipItem]) {
-        guard let data = try? encoder.encode(items) else { return }
+        guard let data = try? encoder.encode(sortedByRecency(items)) else { return }
         defaults.set(data, forKey: key)
         if let cb = onChange {
             Task { @MainActor in cb() }
         }
+    }
+
+    private func sortedByRecency(_ items: [ClipItem]) -> [ClipItem] {
+        items.enumerated()
+            .sorted { lhs, rhs in
+                if lhs.element.updatedAt != rhs.element.updatedAt {
+                    return lhs.element.updatedAt > rhs.element.updatedAt
+                }
+                if lhs.element.createdAt != rhs.element.createdAt {
+                    return lhs.element.createdAt > rhs.element.createdAt
+                }
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
     }
 
     private func saveAsset(_ data: Data, fileExtension: String) -> String? {

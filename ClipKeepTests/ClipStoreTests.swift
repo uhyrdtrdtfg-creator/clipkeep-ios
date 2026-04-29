@@ -63,6 +63,19 @@ final class ClipStoreTests: XCTestCase {
         XCTAssertEqual(items[0].content, "keep")
     }
 
+    func testPinnedItemsStayInRecencyOrder() {
+        store.add("older")
+        let olderID = store.load()[0].id
+        Thread.sleep(forTimeInterval: 0.02)
+        store.add("newer")
+
+        store.togglePin(id: olderID)
+
+        let items = store.load()
+        XCTAssertEqual(items.map(\.content), ["newer", "older"])
+        XCTAssertTrue(items[1].isPinned)
+    }
+
     func testCapacityLimit() {
         store.setMaxCount(3)
         for i in 0..<5 { store.add("item \(i)") }

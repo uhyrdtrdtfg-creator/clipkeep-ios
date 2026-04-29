@@ -32,6 +32,10 @@ struct KeyboardView: View {
         return store.items
             .filter { selectedFilter.matches($0) }
             .filter { q.isEmpty || $0.searchableText.localizedCaseInsensitiveContains(q) }
+            .sorted { lhs, rhs in
+                if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+                return lhs.createdAt > rhs.createdAt
+            }
             .prefix(50)
             .map { $0 }
     }
@@ -96,8 +100,8 @@ struct KeyboardView: View {
             filterBar
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .frame(height: 46)
+        .padding(.vertical, 8)
+        .frame(height: 50)
         .background(Color(UIColor.systemBackground))
     }
 
@@ -122,7 +126,7 @@ struct KeyboardView: View {
             }
         }
         .padding(.horizontal, 10)
-        .frame(height: 30)
+        .frame(height: 32)
         .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
@@ -147,7 +151,7 @@ struct KeyboardView: View {
             }
             .padding(.horizontal, 1)
         }
-        .frame(height: 30)
+        .frame(height: 32)
     }
 
     // MARK: – Content
@@ -383,7 +387,7 @@ private struct FilterChip: View {
             }
             .foregroundStyle(isSelected ? Color.accentColor : .secondary)
             .padding(.horizontal, showsTitle ? 9 : 0)
-            .frame(width: showsTitle ? nil : 30, height: 28)
+            .frame(width: showsTitle ? nil : 34, height: 32)
             .background(
                 isSelected
                     ? Color.accentColor.opacity(0.12)
@@ -411,68 +415,81 @@ private struct ClipHistoryRow: View {
     let onPin: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                ClipPreview(item: item)
+        HStack(spacing: 4) {
+            Button(action: onTap) {
+                HStack(spacing: 10) {
+                    ClipPreview(item: item)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(item.keyboardTitle)
-                            .font(.system(size: 13.5, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(item.kind == .text ? 2 : 1)
                             .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Spacer(minLength: 4)
-
-                        if item.isPinned {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.yellow)
+                        HStack(spacing: 5) {
+                            KindMeta(kind: item.kind)
+                            Text(item.updatedAt.relativeString)
+                            if let detail = item.keyboardDetail {
+                                Text(detail)
+                            }
                         }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     }
-
-                    HStack(spacing: 5) {
-                        KindMeta(kind: item.kind)
-                        Text(item.updatedAt.relativeString)
-                        if let detail = item.keyboardDetail {
-                            Text(detail)
-                        }
-                    }
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
                 }
-
-                Image(systemName: item.kind == .text ? "return" : "doc.on.clipboard")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18)
+                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .background(
-                item.isPinned
-                    ? Color.yellow.opacity(0.08)
-                    : Color(UIColor.secondarySystemGroupedBackground)
-                ,
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(
-                        item.isPinned
-                            ? Color.yellow.opacity(0.35)
-                            : Color(UIColor.separator).opacity(0.32),
-                        lineWidth: 0.5
-                    )
-            )
+            .buttonStyle(KeyboardRowButtonStyle())
+            .frame(maxWidth: .infinity)
+
+            Button(action: onPin) {
+                Image(systemName: actionIcon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(actionTint)
+                    .frame(width: 44, height: 56)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(KeyboardRowButtonStyle())
+            .accessibilityLabel(actionAccessibilityLabel)
         }
-        .buttonStyle(KeyboardRowButtonStyle())
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.5)
-                .onEnded { _ in onPin() }
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 68)
+        .background(
+            item.isPinned
+                ? Color.yellow.opacity(0.08)
+                : Color(UIColor.secondarySystemGroupedBackground)
+            ,
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    item.isPinned
+                        ? Color.yellow.opacity(0.35)
+                        : Color(UIColor.separator).opacity(0.32),
+                    lineWidth: 0.5
+                )
+        )
+    }
+
+    private var actionIcon: String {
+        if item.kind == .image && !item.isPinned { return "ellipsis.circle.fill" }
+        return item.isPinned ? "star.fill" : "star"
+    }
+
+    private var actionTint: Color {
+        item.isPinned ? .yellow : .secondary
+    }
+
+    private var actionAccessibilityLabel: String {
+        if item.kind == .image && !item.isPinned { return "图片操作" }
+        return item.isPinned ? "取消收藏" : "收藏"
     }
 }
 
