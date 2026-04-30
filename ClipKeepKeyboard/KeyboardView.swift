@@ -7,6 +7,7 @@ struct KeyboardView: View {
     @ObservedObject var store: KeyboardStore
     let onSelect: (ClipItem) -> Bool
     let onInsertText: (String) -> Void   // used to push OCR-recognised text into the host field
+    let onUndoInsertion: () -> Bool
     let onDeleteBackward: () -> Void
     let onDismiss: () -> Void
 
@@ -87,6 +88,11 @@ struct KeyboardView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .bottom) {
+            if pendingPinItem == nil, pendingImageActionItem == nil {
+                noticeToast
+            }
+        }
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingPinItem == nil)
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingImageActionItem == nil)
     }
@@ -164,20 +170,25 @@ struct KeyboardView: View {
         } else if displayedItems.isEmpty {
             EmptyKeyboardState(icon: "magnifyingglass", title: "无匹配结果")
         } else {
-            ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: 6) {
-                    ForEach(displayedItems) { item in
-                        ClipHistoryRow(item: item) {
-                            handleSelection(item)
-                        } onPin: {
-                            handlePin(item)
+            GeometryReader { proxy in
+                let cardHeight = max(86, proxy.size.height - 16)
+                let cardWidth = min(238, max(176, proxy.size.width * 0.64))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(displayedItems) { item in
+                            ClipHistoryCard(item: item, width: cardWidth, height: cardHeight) {
+                                handleSelection(item)
+                            } onPin: {
+                                handlePin(item)
+                            }
                         }
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .background(Color(UIColor.systemGroupedBackground))
             }
-            .background(Color(UIColor.systemGroupedBackground))
         }
     }
 
@@ -196,17 +207,24 @@ struct KeyboardView: View {
 
             Spacer()
 
-            if let notice {
-                Text(notice)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            } else {
-                Text("\(displayedItems.count) 条")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .transition(.opacity)
+            Button {
+                handleUndoInsertion()
+            } label: {
+                Label("撤回", systemImage: "arrow.uturn.backward")
+                    .font(.system(size: 13, weight: .semibold))
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(store.canUndoInsertion ? Color.accentColor : Color.secondary)
+                    .padding(.horizontal, 12)
+                    .frame(height: 34)
+                    .background(
+                        store.canUndoInsertion
+                            ? Color.accentColor.opacity(0.12)
+                            : Color(UIColor.secondarySystemFill),
+                        in: RoundedRectangle(cornerRadius: 8)
+                    )
             }
+            .buttonStyle(.plain)
+            .opacity(store.canUndoInsertion ? 1 : 0.45)
 
             Spacer()
 
@@ -223,6 +241,25 @@ struct KeyboardView: View {
         .frame(height: 42)
         .background(Color(UIColor.systemBackground))
         .animation(.easeInOut(duration: 0.15), value: notice)
+        .animation(.easeInOut(duration: 0.15), value: store.canUndoInsertion)
+    }
+
+    @ViewBuilder
+    private var noticeToast: some View {
+        if let notice {
+            Text(notice)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color(UIColor.separator).opacity(0.25), lineWidth: 0.5)
+                )
+                .padding(.bottom, 48)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
     }
 
     // MARK: – Helpers
@@ -230,6 +267,10 @@ struct KeyboardView: View {
     private func handleSelection(_ item: ClipItem) {
         let ok = onSelect(item)
         showNotice(ok ? (item.kind == .text ? "已输入" : "已复制") : "操作失败")
+    }
+
+    private func handleUndoInsertion() {
+        showNotice(onUndoInsertion() ? "已撤回" : "无可撤回")
     }
 
     private func handlePin(_ item: ClipItem) {
@@ -407,64 +448,97 @@ private struct FilterChip: View {
     }
 }
 
-// MARK: – History row
+// MARK: – History card
 
-private struct ClipHistoryRow: View {
+private struct ClipHistoryCard: View {
     let item: ClipItem
+    let width: CGFloat
+    let height: CGFloat
     let onTap: () -> Void
     let onPin: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        ZStack(alignment: .topTrailing) {
             Button(action: onTap) {
-                HStack(spacing: 10) {
-                    ClipPreview(item: item)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(item.keyboardTitle)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(item.kind == .text ? 2 : 1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        HStack(spacing: 5) {
-                            KindMeta(kind: item.kind)
-                            Text(item.updatedAt.relativeString)
-                            if let detail = item.keyboardDetail {
-                                Text(detail)
-                            }
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                .contentShape(Rectangle())
+                cardContent
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(KeyboardRowButtonStyle())
-            .frame(maxWidth: .infinity)
+            .frame(width: width, height: height)
 
             Button(action: onPin) {
                 Image(systemName: actionIcon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(actionTint)
-                    .frame(width: 44, height: 56)
-                    .contentShape(Rectangle())
+                    .frame(width: 34, height: 34)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color(UIColor.separator).opacity(0.24), lineWidth: 0.5)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(KeyboardRowButtonStyle())
             .accessibilityLabel(actionAccessibilityLabel)
+            .padding(8)
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 4)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: 68)
+        .frame(width: width, height: height)
+    }
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
+            HStack(spacing: 5) {
+                KindMeta(kind: item.kind)
+                Text(item.updatedAt.relativeString)
+                Spacer(minLength: 28)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+
+            HStack(alignment: .top, spacing: isCompact ? 8 : 10) {
+                ClipPreview(item: item, size: previewSize)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.keyboardTitle)
+                        .font(.system(size: isCompact ? 13 : 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(isCompact ? 2 : 3)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if !isCompact, let detail = item.keyboardDetail {
+                        Text(detail)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 6) {
+                Image(systemName: item.kind == .text ? "return" : "doc.on.clipboard")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(item.kind == .text ? "输入" : "复制")
+                    .font(.system(size: 11, weight: .semibold))
+                Spacer()
+                if item.isPinned {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .foregroundStyle(.tertiary)
+            .lineLimit(1)
+        }
+        .padding(isCompact ? 10 : 12)
+        .frame(width: width, height: height, alignment: .leading)
         .background(
             item.isPinned
                 ? Color.yellow.opacity(0.08)
-                : Color(UIColor.secondarySystemGroupedBackground)
-            ,
+                : Color(UIColor.secondarySystemGroupedBackground),
             in: RoundedRectangle(cornerRadius: 8)
         )
         .overlay(
@@ -476,6 +550,14 @@ private struct ClipHistoryRow: View {
                     lineWidth: 0.5
                 )
         )
+    }
+
+    private var isCompact: Bool {
+        height < 118
+    }
+
+    private var previewSize: CGFloat {
+        isCompact ? 40 : 52
     }
 
     private var actionIcon: String {
@@ -516,6 +598,7 @@ private struct KindMeta: View {
 
 private struct ClipPreview: View {
     let item: ClipItem
+    var size: CGFloat = 42
 
     var body: some View {
         ZStack {
@@ -528,7 +611,7 @@ private struct ClipPreview: View {
                 fileContent
             }
         }
-        .frame(width: 42, height: 42)
+        .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -539,7 +622,7 @@ private struct ClipPreview: View {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 42, height: 42)
+                .frame(width: size, height: size)
         } else {
             iconContent(systemName: "photo")
         }
@@ -555,7 +638,7 @@ private struct ClipPreview: View {
                     .padding(.horizontal, 3)
                     .frame(height: 13)
                     .background(item.kind.tint, in: RoundedRectangle(cornerRadius: 4))
-                    .padding(3)
+                    .padding(max(2, size * 0.07))
             }
         }
     }

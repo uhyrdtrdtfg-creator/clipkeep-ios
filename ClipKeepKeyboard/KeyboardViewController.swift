@@ -6,6 +6,7 @@ final class KeyboardViewController: UIInputViewController {
     private let store = KeyboardStore()
     private let reader = PasteboardReader(defaults: AppGroup.defaults, readsInitialValue: true)
     private var heightConstraint: NSLayoutConstraint?
+    private var lastInsertedText: String?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -17,9 +18,13 @@ final class KeyboardViewController: UIInputViewController {
             },
             onInsertText: { [weak self] text in
                 // Called after OCR completes — insert the recognised text directly.
-                self?.textDocumentProxy.insertText(text)
+                self?.insertTextFromKeyboard(text)
+            },
+            onUndoInsertion: { [weak self] in
+                self?.undoLastInsertion() ?? false
             },
             onDeleteBackward: { [weak self] in
+                self?.clearUndoInsertion()
                 self?.textDocumentProxy.deleteBackward()
             },
             onDismiss: { [weak self] in self?.advanceToNextInputMode() }
@@ -63,7 +68,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private func handleSelection(_ item: ClipItem) -> Bool {
         if item.kind == .text {
-            textDocumentProxy.insertText(item.content)
+            insertTextFromKeyboard(item.content)
             return true
         }
 
@@ -72,6 +77,27 @@ final class KeyboardViewController: UIInputViewController {
             reader.markCurrentChangeCountSeen()
         }
         return copied
+    }
+
+    private func insertTextFromKeyboard(_ text: String) {
+        guard !text.isEmpty else { return }
+        textDocumentProxy.insertText(text)
+        lastInsertedText = text
+        store.setCanUndoInsertion(true)
+    }
+
+    private func undoLastInsertion() -> Bool {
+        guard let text = lastInsertedText, !text.isEmpty else { return false }
+        for _ in text {
+            textDocumentProxy.deleteBackward()
+        }
+        clearUndoInsertion()
+        return true
+    }
+
+    private func clearUndoInsertion() {
+        lastInsertedText = nil
+        store.setCanUndoInsertion(false)
     }
 
     override func viewWillLayoutSubviews() {
