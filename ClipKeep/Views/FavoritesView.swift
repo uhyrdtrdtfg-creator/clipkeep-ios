@@ -4,6 +4,7 @@ import ClipKeepCore
 struct FavoritesView: View {
     @ObservedObject var vm: ClipListViewModel
     @State private var showPicker = false
+    @State private var showNewTextShortcut = false
     @State private var renamingCategory: String? = nil
     @State private var renameText = ""
     @State private var showCopiedToast = false
@@ -47,8 +48,18 @@ struct FavoritesView: View {
             .onAppear { vm.reload() }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showPicker = true
+                    Menu {
+                        Button {
+                            showNewTextShortcut = true
+                        } label: {
+                            Label("新建文本", systemImage: "text.badge.plus")
+                        }
+
+                        Button {
+                            showPicker = true
+                        } label: {
+                            Label("从历史添加", systemImage: "clock.arrow.circlepath")
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -56,6 +67,9 @@ struct FavoritesView: View {
             }
             .sheet(isPresented: $showPicker, onDismiss: { vm.reload() }) {
                 AddFavoriteSheet(allItems: vm.items, existingCategories: allCategories())
+            }
+            .sheet(isPresented: $showNewTextShortcut, onDismiss: { vm.reload() }) {
+                NewTextShortcutSheet(existingCategories: allCategories())
             }
             .alert("重命名分类", isPresented: Binding(
                 get: { renamingCategory != nil },
@@ -174,14 +188,14 @@ struct FavoritesView: View {
             Text("还没有收藏")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("点击右上角 + 从历史记录中添加")
+            Text("点击右上角 + 添加历史或新建文本")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
             Button {
-                showPicker = true
+                showNewTextShortcut = true
             } label: {
-                Label("添加收藏", systemImage: "plus")
+                Label("新建文本", systemImage: "text.badge.plus")
                     .font(.system(size: 15, weight: .medium))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -189,6 +203,14 @@ struct FavoritesView: View {
                     .foregroundStyle(.white)
             }
             .padding(.top, 4)
+
+            Button {
+                showPicker = true
+            } label: {
+                Label("从历史添加", systemImage: "clock.arrow.circlepath")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 40)
     }
@@ -228,6 +250,115 @@ struct FavoritesView: View {
         let items = ClipStore.shared.load().filter { $0.pinnedCategory == old }
         for item in items { ClipStore.shared.setCategory(id: item.id, category: new) }
         vm.reload()
+    }
+}
+
+// MARK: – New Text Shortcut Sheet
+
+private struct NewTextShortcutSheet: View {
+    let existingCategories: [String]
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var category = ""
+    @State private var showNewCategory = false
+    @State private var newCategory = ""
+
+    private var canSave: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("文本") {
+                    TextEditor(text: $text)
+                        .font(.system(size: 15))
+                        .frame(minHeight: 130)
+                        .scrollContentBackground(.hidden)
+                }
+
+                Section("分类") {
+                    categoryBar
+                }
+            }
+            .navigationTitle("新建文本")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        let cat = category.isEmpty ? nil : category
+                        ClipStore.shared.addFavoriteText(text, category: cat)
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private var categoryBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                categoryChip(title: "不分类", value: "")
+
+                ForEach(existingCategories, id: \.self) { cat in
+                    categoryChip(title: cat, value: cat)
+                }
+
+                Button {
+                    showNewCategory = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus").font(.system(size: 10))
+                        Text("新建").font(.system(size: 12))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(Color(UIColor.secondarySystemFill), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .alert("新建分类", isPresented: $showNewCategory) {
+                    TextField("分类名称", text: $newCategory)
+                    Button("确定") {
+                        let trimmed = newCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            category = trimmed
+                        }
+                        newCategory = ""
+                    }
+                    Button("取消", role: .cancel) { newCategory = "" }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func categoryChip(title: String, value: String) -> some View {
+        let isSelected = category == value
+        return Button {
+            category = value
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(
+                    isSelected ? Color.accentColor.opacity(0.12) : Color(UIColor.secondarySystemFill),
+                    in: Capsule()
+                )
+                .overlay(Capsule().strokeBorder(
+                    isSelected ? Color.accentColor.opacity(0.3) : Color.clear,
+                    lineWidth: 0.5
+                ))
+        }
+        .buttonStyle(.plain)
     }
 }
 

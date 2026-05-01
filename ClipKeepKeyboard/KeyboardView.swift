@@ -13,6 +13,7 @@ struct KeyboardView: View {
 
     @State private var searchText = ""
     @State private var selectedFilter: ClipFilter = .all
+    @State private var selectedHistoryIndex = 0
     @State private var notice: String?
     @State private var noticeTask: Task<Void, Never>?
     @State private var pendingPinItem: ClipItem?          // non-nil = category picker visible
@@ -41,6 +42,23 @@ struct KeyboardView: View {
             .map { $0 }
     }
 
+    private var shortcutItems: [ClipItem] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return store.items
+            .filter { $0.isPinned }
+            .filter { q.isEmpty || $0.searchableText.localizedCaseInsensitiveContains(q) }
+            .sorted { lhs, rhs in
+                if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+                return lhs.createdAt > rhs.createdAt
+            }
+            .prefix(12)
+            .map { $0 }
+    }
+
+    private var displayedItemIDs: [UUID] {
+        displayedItems.map(\.id)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -55,10 +73,12 @@ struct KeyboardView: View {
                 ImageActionOverlay(
                     item: item,
                     onOCR: {
+                        playSelectionHaptic()
                         pendingImageActionItem = nil
                         Task { await performOCR(item) }
                     },
                     onPin: {
+                        playSelectionHaptic()
                         pendingImageActionItem = nil
                         if item.isPinned {
                             ClipStore.shared.togglePin(id: item.id)
@@ -80,9 +100,11 @@ struct KeyboardView: View {
                 ) { category in
                     ClipStore.shared.pin(id: item.id, category: category)
                     store.reload()
+                    playImpactHaptic()
                     showNotice(category.map { "已收藏到「\($0)」" } ?? "已收藏")
                     pendingPinItem = nil
                 } onCancel: {
+                    playSelectionHaptic()
                     pendingPinItem = nil
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -95,6 +117,9 @@ struct KeyboardView: View {
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingPinItem == nil)
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: pendingImageActionItem == nil)
+        .onChange(of: displayedItemIDs) { ids in
+            selectedHistoryIndex = min(selectedHistoryIndex, max(0, ids.count - 1))
+        }
     }
 
     // MARK: – Top bar
@@ -167,27 +192,44 @@ struct KeyboardView: View {
         if store.items.isEmpty {
             EmptyKeyboardState(icon: "clipboard", title: "暂无历史",
                                subtitle: "请在系统设置中开启「允许完全访问」")
-        } else if displayedItems.isEmpty {
+        } else if displayedItems.isEmpty && shortcutItems.isEmpty {
+            EmptyKeyboardState(icon: "magnifyingglass", title: "无匹配结果")
+        } else {
+            VStack(spacing: 0) {
+                if !shortcutItems.isEmpty {
+                    ShortcutStrip(items: shortcutItems) { item in
+                        handleSelection(item)
+                    }
+                }
+
+                historyPager
+            }
+            .background(Color(UIColor.systemGroupedBackground))
+        }
+    }
+
+    @ViewBuilder
+    private var historyPager: some View {
+        if displayedItems.isEmpty {
             EmptyKeyboardState(icon: "magnifyingglass", title: "无匹配结果")
         } else {
             GeometryReader { proxy in
-                let cardHeight = max(86, proxy.size.height - 16)
-                let cardWidth = min(238, max(176, proxy.size.width * 0.64))
+                let cardHeight = max(88, proxy.size.height - 16)
+                let cardWidth = max(176, proxy.size.width - 20)
+                let indexedItems = Array(displayedItems.enumerated())
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 10) {
-                        ForEach(displayedItems) { item in
-                            ClipHistoryCard(item: item, width: cardWidth, height: cardHeight) {
-                                handleSelection(item)
-                            } onPin: {
-                                handlePin(item)
-                            }
+                TabView(selection: $selectedHistoryIndex) {
+                    ForEach(indexedItems, id: \.element.id) { index, item in
+                        ClipHistoryCard(item: item, width: cardWidth, height: cardHeight) {
+                            handleSelection(item)
+                        } onPin: {
+                            handlePin(item)
                         }
+                        .tag(index)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
                 }
-                .background(Color(UIColor.systemGroupedBackground))
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
         }
     }
@@ -210,7 +252,7 @@ struct KeyboardView: View {
             Button {
                 handleUndoInsertion()
             } label: {
-                Label("撤回", systemImage: "arrow.uturn.backward")
+                Label(undoTitle, systemImage: "arrow.uturn.backward")
                     .font(.system(size: 13, weight: .semibold))
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(store.canUndoInsertion ? Color.accentColor : Color.secondary)
@@ -262,6 +304,10 @@ struct KeyboardView: View {
         }
     }
 
+    private var undoTitle: String {
+        store.undoInsertionCount > 1 ? "撤回 \(store.undoInsertionCount)" : "撤回"
+    }
+
     // MARK: – Helpers
 
     private func handleSelection(_ item: ClipItem) {
@@ -274,6 +320,7 @@ struct KeyboardView: View {
     }
 
     private func handlePin(_ item: ClipItem) {
+        playSelectionHaptic()
         if item.kind == .image {
             withAnimation { pendingImageActionItem = item }
         } else if item.isPinned {
@@ -293,6 +340,14 @@ struct KeyboardView: View {
             guard !Task.isCancelled else { return }
             await MainActor.run { notice = nil }
         }
+    }
+
+    private func playSelectionHaptic() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func playImpactHaptic() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     /// Run Vision OCR on an image item and insert the recognised text into the host field.
@@ -445,6 +500,68 @@ private struct FilterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
+    }
+}
+
+// MARK: – Shortcuts
+
+private struct ShortcutStrip: View {
+    let items: [ClipItem]
+    let onSelect: (ClipItem) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(items) { item in
+                    ShortcutChip(item: item) {
+                        onSelect(item)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+        }
+        .frame(height: 48)
+        .background(Color(UIColor.systemBackground))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+}
+
+private struct ShortcutChip: View {
+    let item: ClipItem
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: item.kind.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(item.kind.tint)
+                    .frame(width: 14)
+
+                Text(item.shortcutTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 128)
+
+                Image(systemName: "star.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.yellow)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 34)
+            .background(Color(UIColor.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color(UIColor.separator).opacity(0.28), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(KeyboardRowButtonStyle())
+        .accessibilityLabel(item.keyboardTitle)
     }
 }
 
@@ -888,6 +1005,12 @@ private extension ClipItem {
             }
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    var shortcutTitle: String {
+        let title = keyboardTitle
+        guard title.count > 18 else { return title }
+        return "\(title.prefix(18))…"
     }
 
     var fileExtensionLabel: String? {

@@ -6,10 +6,14 @@ final class KeyboardViewController: UIInputViewController {
     private let store = KeyboardStore()
     private let reader = PasteboardReader(defaults: AppGroup.defaults, readsInitialValue: true)
     private var heightConstraint: NSLayoutConstraint?
-    private var lastInsertedText: String?
+    private var insertedTextStack: [String] = []
+    private let selectionFeedback = UISelectionFeedbackGenerator()
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+    private let notificationFeedback = UINotificationFeedbackGenerator()
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        prepareFeedback()
 
         let keyboardView = KeyboardView(
             store: store,
@@ -24,8 +28,7 @@ final class KeyboardViewController: UIInputViewController {
                 self?.undoLastInsertion() ?? false
             },
             onDeleteBackward: { [weak self] in
-                self?.clearUndoInsertion()
-                self?.textDocumentProxy.deleteBackward()
+                self?.deleteBackwardFromKeyboard()
             },
             onDismiss: { [weak self] in self?.advanceToNextInputMode() }
         )
@@ -75,6 +78,9 @@ final class KeyboardViewController: UIInputViewController {
         let copied = ClipStore.shared.copyToPasteboard(item)
         if copied {
             reader.markCurrentChangeCountSeen()
+            playSelectionFeedback()
+        } else {
+            playWarningFeedback()
         }
         return copied
     }
@@ -82,22 +88,54 @@ final class KeyboardViewController: UIInputViewController {
     private func insertTextFromKeyboard(_ text: String) {
         guard !text.isEmpty else { return }
         textDocumentProxy.insertText(text)
-        lastInsertedText = text
-        store.setCanUndoInsertion(true)
+        insertedTextStack.append(text)
+        store.setUndoInsertionCount(insertedTextStack.count)
+        playImpactFeedback()
     }
 
     private func undoLastInsertion() -> Bool {
-        guard let text = lastInsertedText, !text.isEmpty else { return false }
+        guard let text = insertedTextStack.popLast(), !text.isEmpty else {
+            playWarningFeedback()
+            return false
+        }
         for _ in text {
             textDocumentProxy.deleteBackward()
         }
-        clearUndoInsertion()
+        store.setUndoInsertionCount(insertedTextStack.count)
+        playSelectionFeedback()
         return true
     }
 
+    private func deleteBackwardFromKeyboard() {
+        clearUndoInsertion()
+        textDocumentProxy.deleteBackward()
+        playSelectionFeedback()
+    }
+
     private func clearUndoInsertion() {
-        lastInsertedText = nil
-        store.setCanUndoInsertion(false)
+        insertedTextStack.removeAll()
+        store.setUndoInsertionCount(0)
+    }
+
+    private func prepareFeedback() {
+        selectionFeedback.prepare()
+        impactFeedback.prepare()
+        notificationFeedback.prepare()
+    }
+
+    private func playSelectionFeedback() {
+        selectionFeedback.selectionChanged()
+        selectionFeedback.prepare()
+    }
+
+    private func playImpactFeedback() {
+        impactFeedback.impactOccurred()
+        impactFeedback.prepare()
+    }
+
+    private func playWarningFeedback() {
+        notificationFeedback.notificationOccurred(.warning)
+        notificationFeedback.prepare()
     }
 
     override func viewWillLayoutSubviews() {

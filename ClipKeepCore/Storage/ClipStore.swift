@@ -12,6 +12,7 @@ public final class ClipStore: @unchecked Sendable {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let maxAssetBytes = 25 * 1024 * 1024
+    private let maxStoredTextCharacters = 8_000
 
     // Callback dispatched on the main actor after every mutation.
     public var onChange: (@Sendable () -> Void)?
@@ -72,12 +73,40 @@ public final class ClipStore: @unchecked Sendable {
         save(items)
     }
 
+    /// Create a text shortcut directly from Favorites. Manual entries bypass automatic
+    /// ignore rules because the user is explicitly choosing to save this text.
+    @discardableResult
+    public func addFavoriteText(_ content: String, category: String?) -> Bool {
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+
+        var items = load()
+        let hash = ClipItem.hash(content)
+        let category = cleanedCategory(category)
+
+        if let idx = items.firstIndex(where: { $0.kind == .text && $0.contentHash == hash }) {
+            items[idx].touch()
+            items[idx].isPinned = true
+            items[idx].pinnedCategory = category
+            save(items)
+            return true
+        }
+
+        var item = ClipItem(content: content)
+        item.isPinned = true
+        item.pinnedCategory = category
+        items.insert(item, at: 0)
+        let removed = trim(&items)
+        save(items)
+        removeAssets(for: removed)
+        return true
+    }
+
     /// Pin an item into a specific category (creates pin if not already pinned).
     public func pin(id: UUID, category: String?) {
         var items = load()
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].isPinned = true
-        items[idx].pinnedCategory = category
+        items[idx].pinnedCategory = cleanedCategory(category)
         save(items)
     }
 
@@ -94,7 +123,7 @@ public final class ClipStore: @unchecked Sendable {
     public func setCategory(id: UUID, category: String?) {
         var items = load()
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
-        items[idx].pinnedCategory = category
+        items[idx].pinnedCategory = cleanedCategory(category)
         save(items)
     }
 
@@ -195,14 +224,42 @@ public final class ClipStore: @unchecked Sendable {
         removeAssets(for: removed)
     }
 
+    // MARK: - Ignore Rules
+
+    public func getIgnoresSensitiveText() -> Bool {
+        boolSetting(forKey: StoreKey.ignoresSensitiveText, defaultValue: true)
+    }
+
+    public func setIgnoresSensitiveText(_ enabled: Bool) {
+        defaults.set(enabled, forKey: StoreKey.ignoresSensitiveText)
+    }
+
+    public func getIgnoresOneTimeCodes() -> Bool {
+        boolSetting(forKey: StoreKey.ignoresOneTimeCodes, defaultValue: false)
+    }
+
+    public func setIgnoresOneTimeCodes(_ enabled: Bool) {
+        defaults.set(enabled, forKey: StoreKey.ignoresOneTimeCodes)
+    }
+
+    public func getIgnoresLongText() -> Bool {
+        boolSetting(forKey: StoreKey.ignoresLongText, defaultValue: false)
+    }
+
+    public func setIgnoresLongText(_ enabled: Bool) {
+        defaults.set(enabled, forKey: StoreKey.ignoresLongText)
+    }
+
     // MARK: - Helpers
 
     private func addText(_ content: String) -> Bool {
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard !shouldIgnoreText(content) else { return false }
+
         var items = load()
         let hash = ClipItem.hash(content)
 
-        if let idx = items.firstIndex(where: { $0.contentHash == hash }) {
+        if let idx = items.firstIndex(where: { $0.kind == .text && $0.contentHash == hash }) {
             items[idx].touch()
             save(items)
             return true
@@ -350,6 +407,75 @@ public final class ClipStore: @unchecked Sendable {
         }
         return thumbnail.jpegData(compressionQuality: 0.78)
     }
+
+    private func shouldIgnoreText(_ content: String) -> Bool {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if getIgnoresLongText(), trimmed.count > maxStoredTextCharacters {
+            return true
+        }
+
+        if getIgnoresOneTimeCodes(), looksLikeOneTimeCode(trimmed) {
+            return true
+        }
+
+        if getIgnoresSensitiveText(), looksLikeSensitiveText(trimmed) {
+            return true
+        }
+
+        return false
+    }
+
+    private func looksLikeOneTimeCode(_ text: String) -> Bool {
+        matches(text, pattern: #"^\d{4,8}$"#)
+            || matches(text, pattern: #"(?i)^(code|otp|verification code|验证码|驗證碼)[\s:：-]*\d{4,8}$"#)
+    }
+
+    private func looksLikeSensitiveText(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+
+        if lowercased.contains("-----begin private key-----")
+            || lowercased.contains("-----begin rsa private key-----")
+            || lowercased.contains("-----begin openssh private key-----") {
+            return true
+        }
+
+        if matches(text, pattern: #"(?i)(password|passwd|pwd|token|api[_-]?key|secret|private[_-]?key|access[_-]?token|refresh[_-]?token)\s*[:=]\s*\S{4,}"#) {
+            return true
+        }
+
+        if matches(text, pattern: #"^[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}$"#) {
+            return true
+        }
+
+        let secretPrefixes = ["ghp_", "github_pat_", "sk-", "xoxb-", "xoxp-"]
+        if text.count > 20, secretPrefixes.contains(where: { lowercased.hasPrefix($0) }) {
+            return true
+        }
+
+        return lowercased.hasPrefix("bearer ") && text.count > 24
+    }
+
+    private func matches(_ text: String, pattern: String) -> Bool {
+        text.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    private func boolSetting(forKey key: String, defaultValue: Bool) -> Bool {
+        guard defaults.object(forKey: key) != nil else { return defaultValue }
+        return defaults.bool(forKey: key)
+    }
+
+    private func cleanedCategory(_ category: String?) -> String? {
+        guard let category else { return nil }
+        let trimmed = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private enum StoreKey {
+    static let ignoresSensitiveText = "ignore_sensitive_text"
+    static let ignoresOneTimeCodes = "ignore_one_time_codes"
+    static let ignoresLongText = "ignore_long_text"
 }
 
 private extension Int {

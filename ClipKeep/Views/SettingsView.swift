@@ -4,6 +4,9 @@ import ClipKeepCore
 struct SettingsView: View {
     @State private var maxCount: Int = ClipStore.shared.getMaxCount()
     @State private var maxRetentionDays: Int = ClipStore.shared.getMaxRetentionDays()
+    @State private var ignoresSensitiveText = ClipStore.shared.getIgnoresSensitiveText()
+    @State private var ignoresOneTimeCodes = ClipStore.shared.getIgnoresOneTimeCodes()
+    @State private var ignoresLongText = ClipStore.shared.getIgnoresLongText()
     @State private var showClearAllAlert = false
     @State private var showClearUnpinnedAlert = false
 
@@ -37,6 +40,27 @@ struct SettingsView: View {
                 .onChange(of: maxRetentionDays) { value in
                     ClipStore.shared.setMaxRetentionDays(value)
                 }
+            }
+
+            Section {
+                Toggle("忽略密码与令牌", isOn: $ignoresSensitiveText)
+                    .onChange(of: ignoresSensitiveText) { value in
+                        ClipStore.shared.setIgnoresSensitiveText(value)
+                    }
+
+                Toggle("忽略 4-8 位验证码", isOn: $ignoresOneTimeCodes)
+                    .onChange(of: ignoresOneTimeCodes) { value in
+                        ClipStore.shared.setIgnoresOneTimeCodes(value)
+                    }
+
+                Toggle("忽略超长文本", isOn: $ignoresLongText)
+                    .onChange(of: ignoresLongText) { value in
+                        ClipStore.shared.setIgnoresLongText(value)
+                    }
+            } header: {
+                Text("自动忽略")
+            } footer: {
+                Text("只影响后续捕获，不会删除已有历史。手动创建的收藏文本仍会保存。")
             }
 
             Section("清理") {

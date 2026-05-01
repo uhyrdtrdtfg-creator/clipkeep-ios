@@ -87,6 +87,53 @@ final class ClipStoreTests: XCTestCase {
         XCTAssertTrue(store.load().isEmpty)
     }
 
+    func testIgnoresSensitiveTextByDefault() {
+        let didAdd = store.add("api_key=super-secret-token")
+
+        XCTAssertFalse(didAdd)
+        XCTAssertTrue(store.load().isEmpty)
+    }
+
+    func testCanDisableSensitiveTextFilter() {
+        store.setIgnoresSensitiveText(false)
+
+        let didAdd = store.add("api_key=super-secret-token")
+
+        XCTAssertTrue(didAdd)
+        XCTAssertEqual(store.load().first?.content, "api_key=super-secret-token")
+    }
+
+    func testOneTimeCodeFilterIsOptIn() {
+        XCTAssertTrue(store.add("123456"))
+
+        store.clearAll()
+        store.setIgnoresOneTimeCodes(true)
+
+        XCTAssertFalse(store.add("123456"))
+        XCTAssertTrue(store.load().isEmpty)
+    }
+
+    func testLongTextFilterIsOptIn() {
+        let longText = String(repeating: "a", count: 8_001)
+        XCTAssertTrue(store.add(longText))
+
+        store.clearAll()
+        store.setIgnoresLongText(true)
+
+        XCTAssertFalse(store.add(longText))
+        XCTAssertTrue(store.load().isEmpty)
+    }
+
+    func testAddFavoriteTextBypassesSensitiveFilter() {
+        let didAdd = store.addFavoriteText("password=let-me-keep-this", category: "  常用  ")
+
+        let item = store.load().first
+        XCTAssertTrue(didAdd)
+        XCTAssertEqual(item?.content, "password=let-me-keep-this")
+        XCTAssertTrue(item?.isPinned == true)
+        XCTAssertEqual(item?.pinnedCategory, "常用")
+    }
+
     func testAddImageAsset() throws {
         let data = Data([0, 1, 2, 3])
         store.add(CapturedClip(

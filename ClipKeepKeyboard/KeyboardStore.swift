@@ -3,7 +3,11 @@ import ClipKeepCore
 
 final class KeyboardStore: ObservableObject {
     @Published private(set) var items: [ClipItem] = []
-    @Published private(set) var canUndoInsertion = false
+    @Published private(set) var undoInsertionCount = 0
+
+    var canUndoInsertion: Bool {
+        undoInsertionCount > 0
+    }
 
     /// Sorted list of all distinct pinned categories.
     var pinnedCategories: [String] {
@@ -18,7 +22,7 @@ final class KeyboardStore: ObservableObject {
         items = ClipStore.shared.load()
     }
 
-    func setCanUndoInsertion(_ canUndo: Bool) {
-        canUndoInsertion = canUndo
+    func setUndoInsertionCount(_ count: Int) {
+        undoInsertionCount = max(0, count)
     }
 }
